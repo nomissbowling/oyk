@@ -1,6 +1,6 @@
 [package]
 name = "oyk"
-version = "0.1.2" # change with html_root_url in lib.rs
+version = "0.1.3" # change with html_root_url in lib.rs
 edition = "2021"
 authors = ["nomissbowling <nomissbowling@yahoo.co.jp>"]
 
@@ -27,3 +27,6 @@ asciiz = { version = "0.1" }
 [build-dependencies]
 cc = "1.0.79"
 bindgen = "0.65.1"
+
+[package.metadata.docs.rs]
+rustc-args = ["--cfg", "docsrs"]

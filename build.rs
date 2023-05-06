@@ -27,6 +27,10 @@ fn main() {
   };
   mk_cc("./src", "bridge.cpp", "./include", "bridge");
 
+  let od = if cfg!(docsrs) { std::env::var("OUT_DIR").unwrap() }else{ ".".to_string() };
+  let ipath = if od != "." { od.as_str() }else{ "./include" };
+  let opath = if od != "." { od.as_str() }else{ "./ode" };
+
   let mk_bindings = |hdd: &str, header: &str, rsd: &str, rsfile: &str| {
     let hd = PathBuf::from(hdd);
     let hf = format!("{}", hd.join(header).to_str().expect("invalid path"));
@@ -41,9 +45,9 @@ fn main() {
       .write_to_file(rs.join(rsfile))
       .expect("Could not write bindings!");
   };
-  mk_bindings("./include", "bridge.hpp", "./include", "bridge_bindings.rs");
-  mk_bindings("./ode", "drawstuff.h", "./ode", "drawstuff_bindings.rs");
-  mk_bindings("./ode", "ode.hpp", "./ode", "ode_bindings.rs");
+  mk_bindings("./include", "bridge.hpp", ipath, "bridge_bindings.rs");
+  mk_bindings("./ode", "drawstuff.h", opath, "drawstuff_bindings.rs");
+  mk_bindings("./ode", "ode.hpp", opath, "ode_bindings.rs");
 
   println!("cargo:rustc-link-search=./ode/lib");
   println!("cargo:rustc-link-lib=drawstuff");
