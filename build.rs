@@ -46,7 +46,9 @@ fn main() {
       .write_to_file(rs.join(rsfile))
       .expect("Could not write bindings!");
   };
-  mk_bindings("./include", "bridge.hpp", ipath, "bridge_bindings.rs");
+  if od == "." {
+    mk_bindings("./include", "bridge.hpp", ipath, "bridge_bindings.rs");
+  }
   mk_bindings("./ode", "drawstuff.h", opath, "drawstuff_bindings.rs");
   mk_bindings("./ode", "ode.hpp", opath, "ode_bindings.rs");
 
