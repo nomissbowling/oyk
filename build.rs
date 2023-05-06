@@ -25,9 +25,10 @@ fn main() {
       .include(iname)
       .compile(oname)
   };
-  mk_cc("./src", "bridge.cpp", "./include", "bridge");
-
   let od = if cfg!(docsrs) { std::env::var("OUT_DIR").unwrap() }else{ ".".to_string() };
+  if od == "." {
+    mk_cc("./src", "bridge.cpp", "./include", "bridge");
+  }
   let ipath = if od != "." { od.as_str() }else{ "./include" };
   let opath = if od != "." { od.as_str() }else{ "./ode" };
 
