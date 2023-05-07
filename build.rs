@@ -13,7 +13,10 @@ extern crate bindgen;
 use std::path::PathBuf;
 
 #[cfg(any(docsrs))]
-pub static O_PATH: &str = env!("OUT_DIR");
+pub static S_PATH: String = std::env::var("OUT_DIR"); // keep lifetime
+
+#[cfg(any(docsrs))]
+pub static O_PATH: &str = S_PATH.as_str();
 
 #[cfg(not(docsrs))]
 pub static O_PATH: &str = ".";
