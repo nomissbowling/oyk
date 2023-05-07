@@ -30,22 +30,8 @@
 #![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
 
-// #[cfg(any(docsrs))]
-// include!(concat!(env!("OUT_DIR"), "/bridge_bindings.rs"));
-
-#[cfg(any(docsrs))]
-include!(concat!(env!("OUT_DIR"), "/drawstuff_bindings.rs"));
-
-#[cfg(any(docsrs))]
-include!(concat!(env!("OUT_DIR"), "/ode_bindings.rs"));
-
-#[cfg(not(docsrs))]
 include!(concat!("../include", "/bridge_bindings.rs"));
-
-#[cfg(not(docsrs))]
 include!(concat!("../ode", "/drawstuff_bindings.rs"));
-
-#[cfg(not(docsrs))]
 include!(concat!("../ode", "/ode_bindings.rs"));
 
 #[warn(non_snake_case)]
