@@ -12,17 +12,14 @@ extern crate bindgen;
 
 use std::path::PathBuf;
 
-#[cfg(any(docsrs))]
-pub static S_PATH: String = std::env::var("OUT_DIR").unwrap(); // keep lifetime
-
-#[cfg(any(docsrs))]
-pub static O_PATH: &str = S_PATH.as_str();
-
-#[cfg(not(docsrs))]
-pub static O_PATH: &str = ".";
-
 fn main() {
-  let c_opt = if O_PATH == "." { "-std:c11" }else{ "-std=c++11" };
+  let s_path: String = if cfg!(docsrs) {
+    std::env::var("OUT_DIR").unwrap()
+  }else{
+    ".".to_string()
+  }; // to keep lifetime
+  let o_path: &str = s_path.as_str();
+  let c_opt = if o_path == "." { "-std:c11" }else{ "-std=c++11" };
 
   let mk_cc = |dname: &str, sname: &str, iname: &str, oname: &str| {
     let sd = PathBuf::from(dname);
@@ -53,7 +50,7 @@ fn main() {
       .write_to_file(rs.join(rsfile))
       .expect("Could not write bindings!");
   };
-  if O_PATH == "." {
+  if o_path == "." {
     mk_bindings("./include", "bridge.hpp", "./include", "bridge_bindings.rs");
     mk_bindings("./ode", "drawstuff.h", "./ode", "drawstuff_bindings.rs");
     mk_bindings("./ode", "ode.hpp", "./ode", "ode_bindings.rs");
