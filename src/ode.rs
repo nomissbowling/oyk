@@ -4,15 +4,20 @@
 //! - bindgen https://crates.io/crates/bindgen
 //!
 //! # cc-rs
+//!
 //! - include/bridge.hpp
 //! - src/bridge.cpp
 //!
 //! # bindgen
-//! - from
+//!
+//! from
+//!
 //!  - include/bridge.hpp
 //!  - ode/drawstuff.h (from modified preprocess -E dum.cpp includes drawstuff.h)
 //!  - ode/ode.hpp (from modified preprocess -E dum.cpp includes ode.h)
-//! - to
+//!
+//! to
+//!
 //!  - include/bridge_bindings.rs
 //!  - ode/drawstuff_bindings.rs
 //!  - ode/ode_bindings.rs
@@ -20,6 +25,7 @@
 //! # Requirements
 //!
 //! in the running directory
+//!
 //! - drawstuff.dll
 //! - ode.dll
 //! - libstdc++-6.dll
@@ -36,7 +42,7 @@
 
 mod cppbridge;
 use cppbridge::*;
-pub use cppbridge::{Bridge};
+pub use cppbridge::{Bridge, bput};
 
 mod cdrawstuff;
 use cdrawstuff::*;
@@ -293,8 +299,22 @@ pub fn new() -> Fns {
 
 }
 
+pub struct Cam {
+  pub pos: Vec<f32>, // pos, look at [0, 0, 0]
+  pub ypr: Vec<f32> // yaw, pitch, roll
+}
+
+impl Cam {
+
+pub fn new() -> Cam {
+  Cam{pos: vec![5.0, 0.0, 1.0, 0.0], ypr: vec![-180.0, 0.0, 0.0, 0.0]}
+}
+
+}
+
 pub struct ODE { // unsafe
   fns: Fns,
+  pub cams: Vec<Cam>,
   pub obgs: Vec<Obg>,
   pub gws: Gws,
   pub t_delta: dReal
@@ -362,7 +382,8 @@ impl ODE {
 pub fn new(delta: dReal) -> ODE {
   ostatln!("new ODE");
   unsafe { dInitODE2(0); }
-  ODE{fns: Fns::new(), obgs: vec![], gws: Gws::new(), t_delta: delta}
+  ODE{fns: Fns::new(),
+    cams: vec![Cam::new()], obgs: vec![], gws: Gws::new(), t_delta: delta}
 }
 
 pub fn open() {
@@ -444,6 +465,16 @@ unsafe {
     ODE::destroy_obg(obg); // not obgs.pop();
   }
   obgs.clear();
+}
+}
+
+pub fn view_point() {
+unsafe {
+  let cams: &mut Vec<Cam> = &mut ode_get_mut!(cams);
+  let cam = &mut cams[0];
+  let pos: &mut [f32] = &mut cam.pos;
+  let ypr: &mut [f32] = &mut cam.ypr;
+  dsSetViewpoint(pos as *mut [f32] as *mut f32, ypr as *mut [f32] as *mut f32);
 }
 }
 
@@ -539,11 +570,7 @@ fn c_stop_callback() {
 
 pub fn default_start_callback(rode: &mut ODE) {
   ostatln!("called default start");
-  let xyz: &mut [f32] = &mut vec![4.0, 3.0, 5.0];
-  let hpr: &mut [f32] = &mut vec![-150.0, -30.0, 3.0];
-unsafe {
-  dsSetViewpoint(xyz as *mut [f32] as *mut f32, hpr as *mut [f32] as *mut f32);
-}
+  ODE::view_point();
 }
 
 pub fn default_near_callback(rode: &mut ODE, o1: dGeomID, o2: dGeomID) {

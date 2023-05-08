@@ -58,15 +58,24 @@ fn start_callback(rode: &mut ODE) {
   default_start_callback(rode);
 }
 
+fn step_callback(rode: &mut ODE, pause: i32) {
+  ostatln!("called step");
+  let cam = &mut rode.cams[0];
+  cam.pos = vec![4.0, 3.0, 5.0, 0.0];
+  cam.ypr = vec![-150.0, -30.0, 3.0, 0.0];
+  ODE::view_point();
+  default_step_callback(rode, pause);
+}
+
 fn main() {
   ODE::open();
   ODE::sim_loop(
     800, 600,
     Some(start_callback),
-    None,
-    None,
-    None,
-    None,
+    None, // near_callback
+    Some(step_callback),
+    None, // command_callback
+    None, // stop_callback
     b"./resources");
   ODE::close();
 }
