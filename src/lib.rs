@@ -1,7 +1,15 @@
-#![doc(html_root_url = "https://docs.rs/oyk/0.1.10")]
+#![doc(html_root_url = "https://docs.rs/oyk/0.1.11")]
 /// OYK is ODE (Open Dynamics Engine) bindings for Rust yaw kinetics
 ///
 /// # Requirements
+///
+/// - [ https://github.com/nomissbowling/asciiz ]( https://github.com/nomissbowling/asciiz )
+/// - [ ode and drawstuff ]( https://ode.org/ )
+///
+/// to build dll
+///
+/// - premake4 --with-demos --only-double --with-libccd --cc=gcc --platform--x64 --os=windows codeblocks
+/// - premake4 --with-demos --only-double --with-libccd --platform--x64 --os=windows vs2010
 ///
 /// in the running directory
 ///
