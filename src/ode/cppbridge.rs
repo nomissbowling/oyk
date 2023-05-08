@@ -1,7 +1,7 @@
 /*
   module oyk::ode::cppbridge
 
-  to control publishment included bridge_bindings.rs
+  to control publication included bridge_bindings.rs
 */
 
 // #![allow(unused)]

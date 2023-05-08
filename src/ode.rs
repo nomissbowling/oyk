@@ -1,30 +1,31 @@
-/*
-  module oyk::ode
-
-  cc-rs https://crates.io/crates/cc
-  bindgen https://crates.io/crates/bindgen
-
-  cc-rs
-   include/bridge.hpp
-   src/bridge.cpp
-
-  bindgen
-   from
-    include/bridge.hpp
-    ode/drawstuff.h (from modified preprocess -E dum.cpp includes drawstuff.h)
-    ode/ode.hpp (from modified preprocess -E dum.cpp includes ode.h)
-   to
-    include/bridge_bindings.rs
-    ode/drawstuff_bindings.rs
-    ode/ode_bindings.rs
-
-  in the running directory
-    drawstuff.dll
-    ode.dll
-    libstdc++-6.dll
-    libgcc_s_seh-1.dll
-    libwinpthread-1.dll
-*/
+//! ode integrates bindings to cppbridge cdrawstuff and cppode
+//!
+//! - cc-rs https://crates.io/crates/cc
+//! - bindgen https://crates.io/crates/bindgen
+//!
+//! # cc-rs
+//! - include/bridge.hpp
+//! - src/bridge.cpp
+//!
+//! # bindgen
+//! - from
+//!  - include/bridge.hpp
+//!  - ode/drawstuff.h (from modified preprocess -E dum.cpp includes drawstuff.h)
+//!  - ode/ode.hpp (from modified preprocess -E dum.cpp includes ode.h)
+//! - to
+//!  - include/bridge_bindings.rs
+//!  - ode/drawstuff_bindings.rs
+//!  - ode/ode_bindings.rs
+//!
+//! # Requirements
+//!
+//! in the running directory
+//! - drawstuff.dll
+//! - ode.dll
+//! - libstdc++-6.dll
+//! - libgcc_s_seh-1.dll
+//! - libwinpthread-1.dll
+//!
 
 #![allow(unused)]
 // #![allow(unused_imports)]
@@ -39,10 +40,10 @@ pub use cppbridge::{Bridge};
 
 mod cdrawstuff;
 use cdrawstuff::*;
-pub use cdrawstuff::{DS_VERSION, dsFunctions, dsSimulationLoop};
 
 mod cppode;
 use cppode::*;
+pub use cppode::{dBodyID, dGeomID};
 pub use cppode::{dMatrix4, dMatrix3, dVector4, dVector3, dReal}; // 16 12 4 4
 
 #[warn(unused)]
@@ -51,6 +52,8 @@ pub use cppode::{dMatrix4, dMatrix3, dVector4, dVector3, dReal}; // 16 12 4 4
 #[warn(non_snake_case)]
 #[warn(non_camel_case_types)]
 #[warn(non_upper_case_globals)]
+
+use asciiz::u8z::{U8zBuf, u8zz::{CArgsBuf}};
 
 // std::any::type_name_of_val https://github.com/rust-lang/rust/issues/66359
 fn fake_type_name_of_val<T>(_: &T) -> &'static str {
@@ -243,19 +246,6 @@ pub fn body_(&mut self, id: dBodyID) { from_id!(obg: self, id); }
 pub fn body(&self) -> dBodyID { as_id!(self, body) }
 pub fn geom_(&mut self, id: dGeomID) { from_id!(obg: self, id); }
 pub fn geom(&self) -> dGeomID { as_id!(self, geom) }
-
-pub fn mk_sphere(gws: &mut Gws, m: dReal, r: dReal, col: &dVector4, pos: &dVector3) -> Obg {
-  let mut mass: dMass = dMass::new();
-unsafe {
-  dMassSetSphereTotal(&mut mass, m, r);
-  let body: dBodyID = dBodyCreate(gws.world());
-  dBodySetMass(body, &mass);
-  let geom: dGeomID = dCreateSphere(gws.space(), r);
-  dGeomSetBody(geom, body);
-  dBodySetPosition(body, pos[0], pos[1], pos[2]);
-  Obg::new(body, geom, col) // in unsafe {}, otherwise ambiguous Self body geom
-}
-}
 }
 
 pub struct Gws { // unsafe *mut xxx
@@ -285,11 +275,36 @@ pub fn contactgroup(&self) -> dJointGroupID { as_id!(self, contactgroup) }
 // pub const ObgLen: usize = std::mem::size_of::<Obg>(); // 48
 // pub const GwsLen: usize = std::mem::size_of::<Gws>(); // 32
 
+pub struct Fns {
+  start: Option<fn(rode: &mut ODE)>,
+  near: Option<fn(rode: &mut ODE, o1: dGeomID, o2: dGeomID)>,
+  step: Option<fn(rode: &mut ODE, i32)>,
+  command: Option<fn(rode: &mut ODE, i32)>,
+  stop: Option<fn(rode: &mut ODE)>,
+  path_to_textures: Option<U8zBuf>
+}
+
+impl Fns {
+
+pub fn new() -> Fns {
+  Fns{start: None, near: None, step: None, command: None, stop: None,
+    path_to_textures: None}
+}
+
+}
+
 pub struct ODE { // unsafe
+  fns: Fns,
   pub obgs: Vec<Obg>,
   pub gws: Gws,
   pub t_delta: dReal
 }
+
+#[macro_export]
+macro_rules! ode_mut {
+  () => { (&mut OYK_MUT)[0] };
+}
+pub use ode_mut;
 
 #[macro_export]
 macro_rules! ode_get_mut {
@@ -347,7 +362,7 @@ impl ODE {
 pub fn new(delta: dReal) -> ODE {
   ostatln!("new ODE");
   unsafe { dInitODE2(0); }
-  ODE{obgs: vec![], gws: Gws::new(), t_delta: delta}
+  ODE{fns: Fns::new(), obgs: vec![], gws: Gws::new(), t_delta: delta}
 }
 
 pub fn open() {
@@ -401,6 +416,20 @@ unsafe {
 }
 }
 
+pub fn mk_sphere(m: dReal, r: dReal, col: &dVector4, pos: &dVector3) -> Obg {
+  let mut mass: dMass = dMass::new();
+unsafe {
+  let gws: &mut Gws = &mut ode_get_mut!(gws);
+  dMassSetSphereTotal(&mut mass, m, r);
+  let body: dBodyID = dBodyCreate(gws.world());
+  dBodySetMass(body, &mass);
+  let geom: dGeomID = dCreateSphere(gws.space(), r);
+  dGeomSetBody(geom, body);
+  dBodySetPosition(body, pos[0], pos[1], pos[2]);
+  Obg::new(body, geom, col) // in unsafe {}, otherwise ambiguous Self body geom
+}
+}
+
 pub fn destroy_obg(obg: &Obg) {
 unsafe {
   dGeomDestroy(obg.geom());
@@ -418,6 +447,37 @@ unsafe {
 }
 }
 
+pub fn sim_loop(
+  width: i32, height: i32,
+  start_cb: Option<fn(rode: &mut ODE)>,
+  near_cb: Option<fn(rode: &mut ODE, o1: dGeomID, o2: dGeomID)>,
+  step_cb: Option<fn(rode: &mut ODE, pause: i32)>,
+  command_cb: Option<fn(rode: &mut ODE, cmd: i32)>,
+  stop_cb: Option<fn(rode: &mut ODE)>,
+  a: &[u8]) {
+unsafe {
+  let fns: &mut Fns = &mut ode_get_mut!(fns);
+  fns.start = start_cb;
+  fns.near = near_cb;
+  fns.step = step_cb;
+  fns.command = command_cb;
+  fns.stop = stop_cb;
+  fns.path_to_textures = Some(U8zBuf::from_u8array(a)); // to keep lifetime
+  let mut dsfn: dsFunctions = dsFunctions{
+    version: DS_VERSION,
+    start: Some(c_start_callback), // Option<unsafe extern "C" fn()>
+    step: Some(c_step_callback), // Option<unsafe extern "C" fn(i32)>
+    command: Some(c_command_callback), // Option<unsafe extern "C" fn(i32)>
+    stop: Some(c_stop_callback), // Option<unsafe extern "C" fn()>
+    path_to_textures: fns.path_to_textures.as_ref().expect("not init").as_i8p()
+  };
+
+  let mut cab: CArgsBuf = CArgsBuf::from(&std::env::args().collect());
+  dsSimulationLoop(cab.as_argc(), cab.as_argv_ptr_mut(),
+    width, height, &mut dsfn);
+}
+}
+
 }
 
 impl Drop for ODE {
@@ -427,16 +487,69 @@ impl Drop for ODE {
   }
 }
 
-pub unsafe extern "C"
-fn start_callback() {
-  let xyz: &mut [f32] = &mut vec![4.0, 3.0, 5.0];
-  let hpr: &mut [f32] = &mut vec![-150.0, -30.0, 3.0];
-  dsSetViewpoint(xyz as *mut [f32] as *mut f32, hpr as *mut [f32] as *mut f32);
+unsafe extern "C"
+fn c_start_callback() {
+  let rode: &mut ODE = &mut ode_mut!();
+  let fns = &rode.fns;
+  match fns.start.as_ref() {
+    Some(f) => f(rode),
+    None => default_start_callback(rode)
+  }
 }
 
-pub unsafe extern "C"
-fn near_callback(_dat: *mut c_void, o1: dGeomID, o2: dGeomID) {
-  let gws: &mut Gws = &mut ode_get_mut!(gws);
+unsafe extern "C"
+fn c_near_callback(_dat: *mut c_void, o1: dGeomID, o2: dGeomID) {
+  let rode: &mut ODE = &mut ode_mut!();
+  let fns = &rode.fns;
+  match fns.near.as_ref() {
+    Some(f) => f(rode, o1, o2),
+    None => default_near_callback(rode, o1, o2)
+  }
+}
+
+unsafe extern "C"
+fn c_step_callback(pause: i32) {
+  let rode: &mut ODE = &mut ode_mut!();
+  let fns = &rode.fns;
+  match fns.step.as_ref() {
+    Some(f) => f(rode, pause),
+    None => default_step_callback(rode, pause)
+  }
+}
+
+unsafe extern "C"
+fn c_command_callback(cmd: i32) {
+  let rode: &mut ODE = &mut ode_mut!();
+  let fns = &rode.fns;
+  match fns.command.as_ref() {
+    Some(f) => f(rode, cmd),
+    None => default_command_callback(rode, cmd)
+  }
+}
+
+unsafe extern "C"
+fn c_stop_callback() {
+  let rode: &mut ODE = &mut ode_mut!();
+  let fns = &rode.fns;
+  match fns.stop.as_ref() {
+    Some(f) => f(rode),
+    None => default_stop_callback(rode)
+  }
+}
+
+pub fn default_start_callback(rode: &mut ODE) {
+  ostatln!("called default start");
+  let xyz: &mut [f32] = &mut vec![4.0, 3.0, 5.0];
+  let hpr: &mut [f32] = &mut vec![-150.0, -30.0, 3.0];
+unsafe {
+  dsSetViewpoint(xyz as *mut [f32] as *mut f32, hpr as *mut [f32] as *mut f32);
+}
+}
+
+pub fn default_near_callback(rode: &mut ODE, o1: dGeomID, o2: dGeomID) {
+  ostatln!("called default near");
+  let gws = &rode.gws;
+unsafe {
   // if !(gws.ground() == o1 || gws.ground() == o2) { return; }
   const num: usize = 40;
   let contacts: &mut Vec<dContact> = &mut vec![dContact::new(); num];
@@ -453,14 +566,17 @@ fn near_callback(_dat: *mut c_void, o1: dGeomID, o2: dGeomID) {
     dJointAttach(c, dGeomGetBody(cntct.geom.g1), dGeomGetBody(cntct.geom.g2));
   }
 }
+}
 
-pub unsafe extern "C"
-fn step_callback(pause: i32) {
-  let obgs: &mut Vec<Obg> = &mut ode_get_mut!(obgs);
-  let gws: &mut Gws = &mut ode_get_mut!(gws);
+pub fn default_step_callback(rode: &mut ODE, pause: i32) {
+  ostatln!("called default step");
+  let obgs = &rode.obgs;
+  let gws = &rode.gws;
+  let t_delta = &rode.t_delta;
+unsafe {
   if pause != 1 {
-    dSpaceCollide(gws.space(), 0 as *mut c_void, Some(near_callback));
-    dWorldStep(gws.world(), ode_get!(t_delta));
+    dSpaceCollide(gws.space(), 0 as *mut c_void, Some(c_near_callback));
+    dWorldStep(gws.world(), *t_delta);
     dJointGroupEmpty(gws.contactgroup());
   }
   for obg in obgs {
@@ -479,4 +595,13 @@ fn step_callback(pause: i32) {
       _ => { println!("unknown class: {}", cls); }
     }
   }
+}
+}
+
+pub fn default_command_callback(rode: &mut ODE, cmd: i32) {
+  ostatln!("called default command");
+}
+
+pub fn default_stop_callback(rode: &mut ODE) {
+  ostatln!("called default stop");
 }

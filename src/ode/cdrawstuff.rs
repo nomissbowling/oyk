@@ -1,7 +1,7 @@
 /*
   module oyk::ode::cdrawstuff
 
-  to control publishment included drawstuff_bindings.rs
+  to control publication included drawstuff_bindings.rs
 */
 
 // #![allow(unused)]

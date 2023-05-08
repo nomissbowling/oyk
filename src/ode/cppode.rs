@@ -1,7 +1,7 @@
 /*
   module oyk::ode::cppode
 
-  to control publishment included ode_bindings.rs
+  to control publication included ode_bindings.rs
 */
 
 // #![allow(unused)]
