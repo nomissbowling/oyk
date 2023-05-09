@@ -299,6 +299,7 @@ pub fn new() -> Fns {
 
 }
 
+/// viewpoint(s) of ODE, cams: Vec<Cam>
 pub struct Cam {
   pub pos: Vec<f32>, // pos, look at [0, 0, 0]
   pub ypr: Vec<f32> // yaw, pitch, roll
@@ -306,14 +307,18 @@ pub struct Cam {
 
 impl Cam {
 
-pub fn new() -> Cam {
-  Cam{pos: vec![5.0, 0.0, 1.0, 0.0], ypr: vec![-180.0, 0.0, 0.0, 0.0]}
+/// construct example (p: vec![0.0f32; 3], y: vec![0.0f32; 3])
+pub fn new(p: Vec<f32>, y: Vec<f32>) -> Cam {
+  Cam{pos: p, ypr: y}
 }
 
 }
 
 pub struct ODE { // unsafe
   fns: Fns,
+  wire_solid: i32, // 0: wireframe, 1: solid (for bunny)
+  polyfill_wireframe: i32, // 0: solid, 1: wireframe (for all)
+  sw_viewpoint: usize,
   pub cams: Vec<Cam>,
   pub obgs: Vec<Obg>,
   pub gws: Gws,
@@ -382,8 +387,15 @@ impl ODE {
 pub fn new(delta: dReal) -> ODE {
   ostatln!("new ODE");
   unsafe { dInitODE2(0); }
-  ODE{fns: Fns::new(),
-    cams: vec![Cam::new()], obgs: vec![], gws: Gws::new(), t_delta: delta}
+  ODE{fns: Fns::new(), wire_solid: 1, polyfill_wireframe: 0, sw_viewpoint: 0,
+    cams: vec![
+      Cam::new(vec![5.0, 0.0, 2.0], vec![-180.0, 0.0, 0.0]),
+      Cam::new(vec![5.36, 2.02, 4.28], vec![-162.0, -31.0, 0.0]),
+      Cam::new(vec![-8.3, -14.1, 3.1], vec![84.5, 1.0, 0.0]),
+      Cam::new(vec![4.0, 3.0, 5.0], vec![-150.0, -30.0, 3.0]),
+      Cam::new(vec![10.0, 10.0, 5.0], vec![-150.0, 0.0, 3.0]),
+      Cam::new(vec![5.0, 0.0, 1.0], vec![-180.0, 0.0, 0.0])],
+    obgs: vec![], gws: Gws::new(), t_delta: delta}
 }
 
 pub fn open() {
@@ -477,13 +489,33 @@ unsafe {
 }
 }
 
-pub fn view_point() {
+pub fn viewpoint_() {
 unsafe {
+  let sw_viewpoint: &usize = &ode_get!(sw_viewpoint);
   let cams: &mut Vec<Cam> = &mut ode_get_mut!(cams);
-  let cam = &mut cams[0];
+  let cam = &mut cams[*sw_viewpoint];
   let pos: &mut [f32] = &mut cam.pos;
   let ypr: &mut [f32] = &mut cam.ypr;
   dsSetViewpoint(pos as *mut [f32] as *mut f32, ypr as *mut [f32] as *mut f32);
+}
+}
+
+pub fn viewpoint(f: bool) {
+unsafe {
+  let p: &mut [f32] = &mut vec![0.0; 4];
+  let y: &mut [f32] = &mut vec![0.0; 4];
+  dsGetViewpoint(p as *mut [f32] as *mut f32, y as *mut [f32] as *mut f32);
+  let sw_viewpoint: &usize = &ode_get!(sw_viewpoint);
+  println!("viewpoint {} {:?}, {:?}", *sw_viewpoint, p, y);
+  match f {
+    true => {
+      let cams: &mut Vec<Cam> = &mut ode_get_mut!(cams);
+      let cam = &mut cams[*sw_viewpoint];
+      cam.pos = p.to_vec();
+      cam.ypr = y.to_vec();
+    },
+    _ => {}
+  }
 }
 }
 
@@ -579,7 +611,11 @@ fn c_stop_callback() {
 
 pub fn default_start_callback(rode: &mut ODE) {
   ostatln!("called default start");
-  ODE::view_point();
+  ODE::viewpoint_();
+unsafe {
+  dsSetSphereQuality(3); // default sphere 1
+  dsSetCapsuleQuality(3); // default capsule 3
+}
 }
 
 pub fn default_near_callback(rode: &mut ODE, o1: dGeomID, o2: dGeomID) {
@@ -606,7 +642,6 @@ unsafe {
 
 pub fn default_step_callback(rode: &mut ODE, pause: i32) {
   ostatln!("called default step");
-  ODE::view_point();
   let obgs = &rode.obgs;
   let gws = &rode.gws;
   let t_delta = &rode.t_delta;
@@ -637,6 +672,43 @@ unsafe {
 
 pub fn default_command_callback(rode: &mut ODE, cmd: i32) {
   ostatln!("called default command");
+  match cmd as u8 as char {
+    'p' => {
+unsafe {
+      let polyfill_wireframe: &mut i32 = &mut ode_get_mut!(polyfill_wireframe);
+      *polyfill_wireframe = 1 - *polyfill_wireframe;
+      dsSetDrawMode(*polyfill_wireframe);
+}
+    },
+    'w' => {
+unsafe {
+      let wire_solid: &mut i32 = &mut ode_get_mut!(wire_solid);
+      *wire_solid = 1 - *wire_solid;
+}
+    },
+    'v' => {
+      ODE::viewpoint(false);
+    },
+    's' => {
+      ODE::viewpoint(true);
+unsafe {
+      let sw_viewpoint: &mut usize = &mut ode_get_mut!(sw_viewpoint);
+      *sw_viewpoint = (*sw_viewpoint + 1) % rode.cams.len();
+}
+      ODE::viewpoint_();
+      ODE::viewpoint(false);
+    },
+    'r' => {
+      ODE::clear_obgs();
+      ODE::clear_contactgroup();
+      let fns = &rode.fns;
+      match fns.start.as_ref() {
+        Some(f) => f(rode),
+        None => default_start_callback(rode)
+      }
+    },
+    _ => {}
+  }
 }
 
 pub fn default_stop_callback(rode: &mut ODE) {
