@@ -69,6 +69,7 @@ fn command_callback(rode: &mut ODE, cmd: i32) {
   match cmd as u8 as char {
     'r' => {{
       ODE::clear_obgs();
+      ODE::clear_contactgroup();
       start_callback(rode);
     }},
     'v' => {{

@@ -404,6 +404,7 @@ unsafe {
 
 pub fn close() {
   ODE::clear_obgs();
+  ODE::clear_contactgroup();
   ODE::destroy_world();
 unsafe {
   // need this code (drop element) to drop instance
@@ -465,6 +466,14 @@ unsafe {
     ODE::destroy_obg(obg); // not obgs.pop();
   }
   obgs.clear();
+}
+}
+
+pub fn clear_contactgroup() {
+unsafe {
+  let gws: &mut Gws = &mut ode_get_mut!(gws);
+  dJointGroupDestroy(gws.contactgroup());
+  gws.contactgroup_(dJointGroupCreate(0));
 }
 }
 
