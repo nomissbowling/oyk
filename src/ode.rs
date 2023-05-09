@@ -597,6 +597,7 @@ unsafe {
 
 pub fn default_step_callback(rode: &mut ODE, pause: i32) {
   ostatln!("called default step");
+  ODE::view_point();
   let obgs = &rode.obgs;
   let gws = &rode.gws;
   let t_delta = &rode.t_delta;
