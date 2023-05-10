@@ -249,7 +249,8 @@ pub fn new() -> dMass {
 pub struct Obg { // unsafe *mut xxx
   body: usize, // dBodyID,
   geom: usize, // dGeomID,
-  pub col: dVector4 // color
+  /// color
+  pub col: dVector4
 }
 
 impl Obg {
@@ -328,8 +329,10 @@ pub fn new() -> Fns {
 
 /// viewpoint(s) of ODE, cams: Vec&lt;Cam&gt;
 pub struct Cam {
-  pub pos: Vec<f32>, // pos, look at [0, 0, 0]
-  pub ypr: Vec<f32> // yaw, pitch, roll
+  /// pos, look at [0, 0, 0]
+  pub pos: Vec<f32>,
+  /// yaw, pitch, roll
+  pub ypr: Vec<f32>
 }
 
 impl Cam {
@@ -347,10 +350,14 @@ pub struct ODE { // unsafe
   wire_solid: i32, // 0: wireframe, 1: solid (for bunny)
   polyfill_wireframe: i32, // 0: solid, 1: wireframe (for all)
   sw_viewpoint: usize, // switch viewpoint
-  pub cams: Vec<Cam>, // viewpoint(s)
-  pub obgs: Vec<Obg>, // object(s)
-  pub gws: Gws, // singleton
-  pub t_delta: dReal // step
+  /// viewpoint(s)
+  pub cams: Vec<Cam>,
+  /// object(s)
+  pub obgs: Vec<Obg>,
+  /// singleton
+  pub gws: Gws,
+  /// step
+  pub t_delta: dReal
 }
 
 /// $rf is registered function in Fns, $df is default callback used when None
