@@ -55,7 +55,7 @@ fn main() {
   };
   if o_path == "." {
     mk_bindings("./include", "bridge.hpp", "./include", "bridge_bindings.rs",
-      true, true);
+      false, true); // should not be inline otherwise link error
     mk_bindings("./ode", "drawstuff.h", "./ode", "drawstuff_bindings.rs",
       false, true);
     mk_bindings("./ode", "ode.hpp", "./ode", "ode_bindings.rs",
