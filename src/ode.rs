@@ -66,8 +66,9 @@ fn fake_type_name_of_val<T>(_: &T) -> &'static str {
   std::any::type_name::<T>()
 }
 
-/// id for from_id and chk_src_type (now inner use)
-pub enum ClsId {
+// id for from_id and chk_src_type (now inner use)
+// not pub
+enum ClsId {
   World = 1, Space, Body, Geom, JointGroup
 }
 
