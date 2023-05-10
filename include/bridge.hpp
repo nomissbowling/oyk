@@ -11,13 +11,13 @@ protected:
   char *str;
 public:
   /// construct
-  Bridge();
+  Bridge() : str("_bridge") {}
   /// construct with ptr
-  Bridge(char *s);
+  Bridge(char *s) : str(s) {}
   /// destruct
-  virtual ~Bridge();
+  virtual ~Bridge() {}
   /// assign ptr
-  void pset(char *p);
+  void pset(char *p) { str = p; }
   /// display
   void put();
 };
