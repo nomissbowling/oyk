@@ -66,11 +66,12 @@ fn fake_type_name_of_val<T>(_: &T) -> &'static str {
   std::any::type_name::<T>()
 }
 
+/// id for from_id and chk_src_type (now inner use)
 pub enum ClsId {
   World = 1, Space, Body, Geom, JointGroup
 }
 
-#[macro_export]
+// #[macro_export]
 macro_rules! chk_src_type {
   ($n: expr, $obj: ident, $src: expr) => {{
     let o = fake_type_name_of_val(&$obj); // "*mut (self name)::oyk::ode::Xxx"
@@ -97,7 +98,7 @@ macro_rules! chk_src_type {
 }
 // pub use chk_src_type;
 
-#[macro_export]
+// #[macro_export]
 macro_rules! from_id {
   (obg: $obj: ident, $src: expr) => {
     let (k, v) = chk_src_type!("Obg", $obj, $src);
@@ -121,7 +122,7 @@ macro_rules! from_id {
 }
 // pub use from_id;
 
-#[macro_export]
+// #[macro_export]
 macro_rules! as_id { // common Obg and Gws
   ($obj: ident, body) => { $obj.body as dBodyID };
   ($obj: ident, geom) => { $obj.geom as dGeomID };
@@ -133,6 +134,7 @@ macro_rules! as_id { // common Obg and Gws
 }
 // pub use as_id;
 
+/// for debug output status
 #[macro_export]
 macro_rules! ostat {
   // ($($e:expr),+) => { print!($($e),*); };
@@ -140,6 +142,7 @@ macro_rules! ostat {
 }
 pub use ostat;
 
+/// for debug output status with ln
 #[macro_export]
 macro_rules! ostatln {
   // ($($e:expr),+) => { println!($($e),*); };
@@ -151,15 +154,17 @@ use std::ffi::{c_void};
 
 use once_cell::sync::Lazy;
 
-// unsafe static mut
+/// unsafe static mut OYK_MUT (management ODE singleton instance)
 pub static mut OYK_MUT: Lazy<Vec<ODE>> = Lazy::new(|| vec![ODE::new(0.002)]);
 
+/// unsafe static COLORS (reference to preset colors)
 pub static COLORS: Lazy<Vec<u32>> = Lazy::new(|| vec![
   0xcccccccc, 0xcc9933cc, 0x33cc99cc, 0x9933cccc,
   0x3399cccc, 0x99cc33cc, 0xcc3399cc, 0x999999cc,
   0x666666cc, 0x996633cc, 0x339966cc, 0x663399cc,
   0x336699cc, 0x669933cc, 0x993366cc, 0x333333cc]);
 
+/// u32 RGBA (little endian) to dVector4 color
 pub fn vec4_from_u32(col: u32) -> dVector4 {
   let mut c: dVector4 = [0.0, 0.0, 0.0, 0.0];
   let p: usize = &col as *const u32 as usize;
@@ -173,6 +178,7 @@ unsafe {
 
 impl dSurfaceParameters {
 
+/// binding construct dSurfaceParameters
 pub fn new() -> dSurfaceParameters {
   dSurfaceParameters{
     mode: 0, // c_int
@@ -196,6 +202,7 @@ pub fn new() -> dSurfaceParameters {
 
 impl dContactGeom {
 
+/// binding construct dContactGeom
 pub fn new() -> dContactGeom {
   dContactGeom{
     pos: [0.0, 0.0, 0.0, 0.0], // dVector3
@@ -211,6 +218,7 @@ pub fn new() -> dContactGeom {
 
 impl dContact {
 
+/// binding construct dContact
 pub fn new() -> dContact {
   dContact{
     surface: dSurfaceParameters::new(),
@@ -222,6 +230,7 @@ pub fn new() -> dContact {
 
 impl dMass {
 
+/// binding construct dMass (as dMassSetZero)
 pub fn new() -> dMass {
   let mut mass: dMass = dMass{
     mass: 0.0,
@@ -236,6 +245,7 @@ pub fn new() -> dMass {
 
 }
 
+/// object(s) of ODE, obgs: Vec&lt;Obg&gt;
 pub struct Obg { // unsafe *mut xxx
   body: usize, // dBodyID,
   geom: usize, // dGeomID,
@@ -244,6 +254,7 @@ pub struct Obg { // unsafe *mut xxx
 
 impl Obg {
 
+/// construct
 pub fn new(body: dBodyID, geom: dGeomID, col: &dVector4) -> Obg {
   Obg{body: body as usize, geom: geom as usize, col: *col}
 }
@@ -254,6 +265,7 @@ pub fn geom_(&mut self, id: dGeomID) { from_id!(obg: self, id); }
 pub fn geom(&self) -> dGeomID { as_id!(self, geom) }
 }
 
+/// object of ODE, gws: singleton
 pub struct Gws { // unsafe *mut xxx
   world: usize, // dWorldID,
   space: usize, // dSpaceID,
@@ -263,6 +275,7 @@ pub struct Gws { // unsafe *mut xxx
 
 impl Gws {
 
+/// construct
 pub fn new() -> Gws {
   Gws{world: 0, space: 0, ground: 0, contactgroup: 0}
 }
@@ -281,6 +294,7 @@ pub fn contactgroup(&self) -> dJointGroupID { as_id!(self, contactgroup) }
 // pub const ObgLen: usize = std::mem::size_of::<Obg>(); // 48
 // pub const GwsLen: usize = std::mem::size_of::<Gws>(); // 32
 
+/// object of ODE, fns: singleton (registered callback functions, textures)
 pub struct Fns {
   start: Option<fn(rode: &mut ODE)>,
   near: Option<fn(rode: &mut ODE, o1: dGeomID, o2: dGeomID)>,
@@ -292,6 +306,7 @@ pub struct Fns {
 
 impl Fns {
 
+/// construct
 pub fn new() -> Fns {
   Fns{start: None, near: None, step: None, command: None, stop: None,
     path_to_textures: None}
@@ -299,7 +314,7 @@ pub fn new() -> Fns {
 
 }
 
-/// viewpoint(s) of ODE, cams: Vec<Cam>
+/// viewpoint(s) of ODE, cams: Vec&lt;Cam&gt;
 pub struct Cam {
   pub pos: Vec<f32>, // pos, look at [0, 0, 0]
   pub ypr: Vec<f32> // yaw, pitch, roll
@@ -307,13 +322,14 @@ pub struct Cam {
 
 impl Cam {
 
-/// construct example (p: vec![0.0f32; 3], y: vec![0.0f32; 3])
+/// construct example let cam: Cam = new(vec![0.0f32; 3], vec![0.0f32; 3]);
 pub fn new(p: Vec<f32>, y: Vec<f32>) -> Cam {
   Cam{pos: p, ypr: y}
 }
 
 }
 
+/// ODE singleton
 pub struct ODE { // unsafe
   fns: Fns,
   wire_solid: i32, // 0: wireframe, 1: solid (for bunny)
@@ -325,25 +341,43 @@ pub struct ODE { // unsafe
   pub t_delta: dReal
 }
 
+/// $rf is registered function in Fns, $df id default callback used when None
+#[macro_export]
+macro_rules! ode_fn {
+  ($rf: ident, $df: ident) => {
+unsafe {
+    let fns: &Fns = &ode_get!(fns);
+    match fns.$rf.as_ref() {
+      Some(f) => *f,
+      None => $df
+    }
+}
+  };
+}
+// pub use ode_fn;
+
+/// ODE getter (always mut)
 #[macro_export]
 macro_rules! ode_mut {
   () => { (&mut OYK_MUT)[0] };
 }
-pub use ode_mut;
+// pub use ode_mut;
 
+/// ODE attribute getter (mut)
 #[macro_export]
 macro_rules! ode_get_mut {
   ($src: ident) => { (&mut OYK_MUT)[0].$src };
 }
-pub use ode_get_mut;
+// pub use ode_get_mut;
 
+/// ODE attribute getter (not mut)
 #[macro_export]
 macro_rules! ode_get {
   ($src: ident) => { (&OYK_MUT)[0].$src };
 }
-pub use ode_get;
+// pub use ode_get;
 
-#[macro_export]
+// #[macro_export]
 macro_rules! ode_gws_set {
   ($dst: ident, $src: expr) => {
 //  unsafe { (&mut OYK_MUT)[0].gws.$dst = $src as usize } // use outside unsafe
@@ -352,7 +386,7 @@ macro_rules! ode_gws_set {
 }
 // pub use ode_gws_set;
 
-#[macro_export]
+// #[macro_export]
 macro_rules! ode_gws_get {
   ($src: ident, $dst: ty) => {
 //    unsafe { (&OYK_MUT)[0].gws.$src as $dst } // use outside unsafe
@@ -361,7 +395,7 @@ macro_rules! ode_gws_get {
 }
 // pub use ode_gws_get;
 
-#[macro_export]
+// #[macro_export]
 macro_rules! gws_dump {
   () => {
 unsafe {
@@ -384,6 +418,7 @@ unsafe {
 
 impl ODE {
 
+/// construct (must not call it, auto instanciate by once_cell lazy)
 pub fn new(delta: dReal) -> ODE {
   ostatln!("new ODE");
   unsafe { dInitODE2(0); }
@@ -398,6 +433,7 @@ pub fn new(delta: dReal) -> ODE {
     obgs: vec![], gws: Gws::new(), t_delta: delta}
 }
 
+/// ODE initialize
 pub fn open() {
 unsafe {
   // need this code (do nothing) to create instance
@@ -414,6 +450,7 @@ unsafe {
 //  gws_dump!();
 }
 
+/// ODE finalize
 pub fn close() {
   ODE::clear_obgs();
   ODE::clear_contactgroup();
@@ -427,6 +464,7 @@ unsafe {
 }
 }
 
+/// auto called by ODE::open() (custom start callback to create your objects)
 pub fn create_world() {
   ostatln!("create world");
 unsafe {
@@ -440,6 +478,7 @@ unsafe {
 }
 }
 
+/// auto called by ODE::close()
 pub fn destroy_world() {
   ostatln!("destroy world");
 unsafe {
@@ -450,6 +489,7 @@ unsafe {
 }
 }
 
+/// make sphere primitive object (need register to show on the ODE space world)
 pub fn mk_sphere(m: dReal, r: dReal, col: &dVector4, pos: &dVector3) -> Obg {
   let mut mass: dMass = dMass::new();
 unsafe {
@@ -464,6 +504,7 @@ unsafe {
 }
 }
 
+/// destroy object (not unregister)
 pub fn destroy_obg(obg: &Obg) {
 unsafe {
   dGeomDestroy(obg.geom());
@@ -471,6 +512,7 @@ unsafe {
 }
 }
 
+/// destroy and unregister all objects
 pub fn clear_obgs() {
 unsafe {
   let obgs: &mut Vec<Obg> = &mut ode_get_mut!(obgs);
@@ -481,6 +523,7 @@ unsafe {
 }
 }
 
+/// destroy contact group and re initialize it
 pub fn clear_contactgroup() {
 unsafe {
   let gws: &mut Gws = &mut ode_get_mut!(gws);
@@ -489,6 +532,7 @@ unsafe {
 }
 }
 
+/// set viewpoint (from the current viewpoint Cam[sw_viewpoint])
 pub fn viewpoint_() {
 unsafe {
   let sw_viewpoint: &usize = &ode_get!(sw_viewpoint);
@@ -500,6 +544,7 @@ unsafe {
 }
 }
 
+/// get viewpoint (f: true, save to the current viewpoint Cam[sw_viewpoint])
 pub fn viewpoint(f: bool) {
 unsafe {
   let p: &mut [f32] = &mut vec![0.0; 4];
@@ -519,6 +564,7 @@ unsafe {
 }
 }
 
+/// default simulation loop
 pub fn sim_loop(
   width: i32, height: i32,
   start_cb: Option<fn(rode: &mut ODE)>,
@@ -552,6 +598,7 @@ unsafe {
 
 }
 
+/// binding finalize ODE (auto called)
 impl Drop for ODE {
   fn drop(&mut self) {
     unsafe { dCloseODE(); }
@@ -562,53 +609,34 @@ impl Drop for ODE {
 unsafe extern "C"
 fn c_start_callback() {
   let rode: &mut ODE = &mut ode_mut!();
-  let fns = &rode.fns;
-  match fns.start.as_ref() {
-    Some(f) => f(rode),
-    None => default_start_callback(rode)
-  }
+  ode_fn!(start, default_start_callback)(rode);
 }
 
 unsafe extern "C"
 fn c_near_callback(_dat: *mut c_void, o1: dGeomID, o2: dGeomID) {
   let rode: &mut ODE = &mut ode_mut!();
-  let fns = &rode.fns;
-  match fns.near.as_ref() {
-    Some(f) => f(rode, o1, o2),
-    None => default_near_callback(rode, o1, o2)
-  }
+  ode_fn!(near, default_near_callback)(rode, o1, o2);
 }
 
 unsafe extern "C"
 fn c_step_callback(pause: i32) {
   let rode: &mut ODE = &mut ode_mut!();
-  let fns = &rode.fns;
-  match fns.step.as_ref() {
-    Some(f) => f(rode, pause),
-    None => default_step_callback(rode, pause)
-  }
+  ode_fn!(step, default_step_callback)(rode, pause);
 }
 
 unsafe extern "C"
 fn c_command_callback(cmd: i32) {
   let rode: &mut ODE = &mut ode_mut!();
-  let fns = &rode.fns;
-  match fns.command.as_ref() {
-    Some(f) => f(rode, cmd),
-    None => default_command_callback(rode, cmd)
-  }
+  ode_fn!(command, default_command_callback)(rode, cmd);
 }
 
 unsafe extern "C"
 fn c_stop_callback() {
   let rode: &mut ODE = &mut ode_mut!();
-  let fns = &rode.fns;
-  match fns.stop.as_ref() {
-    Some(f) => f(rode),
-    None => default_stop_callback(rode)
-  }
+  ode_fn!(stop, default_stop_callback)(rode);
 }
 
+/// start default callback function
 pub fn default_start_callback(rode: &mut ODE) {
   ostatln!("called default start");
   ODE::viewpoint_();
@@ -618,6 +646,7 @@ unsafe {
 }
 }
 
+/// near default callback function
 pub fn default_near_callback(rode: &mut ODE, o1: dGeomID, o2: dGeomID) {
   ostatln!("called default near");
   let gws = &rode.gws;
@@ -640,6 +669,7 @@ unsafe {
 }
 }
 
+/// step default callback function
 pub fn default_step_callback(rode: &mut ODE, pause: i32) {
   ostatln!("called default step");
   let obgs = &rode.obgs;
@@ -670,6 +700,7 @@ unsafe {
 }
 }
 
+/// command default callback function
 pub fn default_command_callback(rode: &mut ODE, cmd: i32) {
   ostatln!("called default command");
   match cmd as u8 as char {
@@ -701,16 +732,13 @@ unsafe {
     'r' => {
       ODE::clear_obgs();
       ODE::clear_contactgroup();
-      let fns = &rode.fns;
-      match fns.start.as_ref() {
-        Some(f) => f(rode),
-        None => default_start_callback(rode)
-      }
+      ode_fn!(start, default_start_callback)(rode);
     },
     _ => {}
   }
 }
 
+/// stop default callback function
 pub fn default_stop_callback(rode: &mut ODE) {
   ostatln!("called default stop");
 }
