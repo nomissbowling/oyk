@@ -1,8 +1,6 @@
-/*
-  module oyk::ode::cppode
-
-  to control publication included ode_bindings.rs
-*/
+//! cppode
+//!
+//! to control publication included ode_bindings.rs
 
 // #![allow(unused)]
 // #![allow(unused_imports)]

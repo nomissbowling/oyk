@@ -1,8 +1,6 @@
-/*
-  module oyk::ode::cppbridge
-
-  to control publication included bridge_bindings.rs
-*/
+//! cppbridge
+//!
+//! to control publication included bridge_bindings.rs
 
 // #![allow(unused)]
 // #![allow(unused_imports)]

@@ -249,6 +249,7 @@ pub fn new() -> dMass {
 pub struct Obg { // unsafe *mut xxx
   body: usize, // dBodyID,
   geom: usize, // dGeomID,
+  /// color
   pub col: dVector4
 }
 
@@ -259,9 +260,13 @@ pub fn new(body: dBodyID, geom: dGeomID, col: &dVector4) -> Obg {
   Obg{body: body as usize, geom: geom as usize, col: *col}
 }
 
+/// setter
 pub fn body_(&mut self, id: dBodyID) { from_id!(obg: self, id); }
+/// getter
 pub fn body(&self) -> dBodyID { as_id!(self, body) }
+/// setter
 pub fn geom_(&mut self, id: dGeomID) { from_id!(obg: self, id); }
+/// getter
 pub fn geom(&self) -> dGeomID { as_id!(self, geom) }
 }
 
@@ -280,13 +285,21 @@ pub fn new() -> Gws {
   Gws{world: 0, space: 0, ground: 0, contactgroup: 0}
 }
 
+/// setter
 pub fn world_(&mut self, id: dWorldID) { from_id!(gws: self, id); }
+/// getter
 pub fn world(&self) -> dWorldID { as_id!(self, world) }
+/// setter
 pub fn space_(&mut self, id: dSpaceID) { from_id!(gws: self, id); }
+/// getter
 pub fn space(&self) -> dSpaceID { as_id!(self, space) }
+/// setter
 pub fn ground_(&mut self, id: dGeomID) { from_id!(gws: self, id); }
+/// getter
 pub fn ground(&self) -> dGeomID { as_id!(self, ground) }
+/// setter
 pub fn contactgroup_(&mut self, id: dJointGroupID) { from_id!(gws: self, id); }
+/// getter
 pub fn contactgroup(&self) -> dJointGroupID { as_id!(self, contactgroup) }
 
 }
@@ -316,8 +329,10 @@ pub fn new() -> Fns {
 
 /// viewpoint(s) of ODE, cams: Vec&lt;Cam&gt;
 pub struct Cam {
-  pub pos: Vec<f32>, // pos, look at [0, 0, 0]
-  pub ypr: Vec<f32> // yaw, pitch, roll
+  /// pos, look at [0, 0, 0]
+  pub pos: Vec<f32>,
+  /// yaw, pitch, roll
+  pub ypr: Vec<f32>
 }
 
 impl Cam {
@@ -335,13 +350,17 @@ pub struct ODE { // unsafe
   wire_solid: i32, // 0: wireframe, 1: solid (for bunny)
   polyfill_wireframe: i32, // 0: solid, 1: wireframe (for all)
   sw_viewpoint: usize,
+  /// viewpoint(s)
   pub cams: Vec<Cam>,
+  /// object(s)
   pub obgs: Vec<Obg>,
+  /// singleton
   pub gws: Gws,
+  /// step
   pub t_delta: dReal
 }
 
-/// $rf is registered function in Fns, $df id default callback used when None
+/// $rf is registered function in Fns, $df is default callback used when None
 #[macro_export]
 macro_rules! ode_fn {
   ($rf: ident, $df: ident) => {
@@ -672,32 +691,16 @@ unsafe {
 /// step default callback function
 pub fn default_step_callback(rode: &mut ODE, pause: i32) {
   ostatln!("called default step");
-  let obgs = &rode.obgs;
   let gws = &rode.gws;
   let t_delta = &rode.t_delta;
-unsafe {
   if pause != 1 {
+unsafe {
     dSpaceCollide(gws.space(), 0 as *mut c_void, Some(c_near_callback));
     dWorldStep(gws.world(), *t_delta);
     dJointGroupEmpty(gws.contactgroup());
-  }
-  for obg in obgs {
-    let c: Vec<f32> = obg.col.into_iter().map(|v| v as f32).collect();
-    dsSetColorAlpha(c[0], c[1], c[2], c[3]);
-    let geom: dGeomID = obg.geom();
-    let body: dBodyID = dGeomGetBody(geom); // same as obg.body()
-    let cls = dGeomGetClass(geom);
-    match cls {
-      dSphereClass => {
-        let pos: *const dReal = dBodyGetPosition(body);
-        let rot: *const dReal = dBodyGetRotation(body);
-        let radius: dReal = dGeomSphereGetRadius(geom);
-        dsDrawSphereD(pos, rot, radius as f32);
-      },
-      _ => { println!("unknown class: {}", cls); }
-    }
-  }
 }
+  }
+  draw_objects(rode);
 }
 
 /// command default callback function
@@ -741,4 +744,27 @@ unsafe {
 /// stop default callback function
 pub fn default_stop_callback(rode: &mut ODE) {
   ostatln!("called default stop");
+}
+
+pub fn draw_objects(rode: &mut ODE) {
+  let _wire_solid = &rode.wire_solid; // for bunny
+  let obgs = &rode.obgs;
+  for obg in obgs {
+unsafe {
+    let c: Vec<f32> = obg.col.into_iter().map(|v| v as f32).collect();
+    dsSetColorAlpha(c[0], c[1], c[2], c[3]);
+    let geom: dGeomID = obg.geom();
+    let body: dBodyID = dGeomGetBody(geom); // same as obg.body()
+    let cls = dGeomGetClass(geom);
+    match cls {
+      dSphereClass => {
+        let pos: *const dReal = dBodyGetPosition(body);
+        let rot: *const dReal = dBodyGetRotation(body);
+        let radius: dReal = dGeomSphereGetRadius(geom);
+        dsDrawSphereD(pos, rot, radius as f32);
+      },
+      _ => { println!("unknown class: {}", cls); }
+    }
+}
+  }
 }

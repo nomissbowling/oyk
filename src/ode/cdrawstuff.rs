@@ -1,8 +1,6 @@
-/*
-  module oyk::ode::cdrawstuff
-
-  to control publication included drawstuff_bindings.rs
-*/
+//! cdrawstuff
+//!
+//! to control publication included drawstuff_bindings.rs
 
 // #![allow(unused)]
 // #![allow(unused_imports)]
