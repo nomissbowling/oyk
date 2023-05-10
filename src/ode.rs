@@ -253,6 +253,7 @@ pub struct Obg { // unsafe *mut xxx
   pub col: dVector4
 }
 
+/// body geom
 impl Obg {
 
 /// construct
@@ -278,6 +279,7 @@ pub struct Gws { // unsafe *mut xxx
   contactgroup: usize // dJointGroupID
 }
 
+/// world space
 impl Gws {
 
 /// construct
@@ -317,6 +319,7 @@ pub struct Fns {
   path_to_textures: Option<U8zBuf>
 }
 
+/// callback functions
 impl Fns {
 
 /// construct
@@ -335,6 +338,7 @@ pub struct Cam {
   pub ypr: Vec<f32>
 }
 
+/// viewpoint
 impl Cam {
 
 /// construct example let cam: Cam = new(vec![0.0f32; 3], vec![0.0f32; 3]);
@@ -435,6 +439,7 @@ unsafe {
 }
 // pub use gws_dump;
 
+/// singleton interface
 impl ODE {
 
 /// construct (must not call it, auto instanciate by once_cell lazy)
