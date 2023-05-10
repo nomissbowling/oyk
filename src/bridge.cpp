@@ -1,6 +1,4 @@
-/*
-  bridge.cpp
-*/
+/// bridge.cpp
 
 #include <iomanip>
 #include <iostream>

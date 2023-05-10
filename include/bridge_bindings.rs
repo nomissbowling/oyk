@@ -2,6 +2,7 @@
 
 #[repr(C)]
 pub struct Bridge__bindgen_vtable(::std::os::raw::c_void);
+#[doc = " Bridge for cpp"]
 #[repr(C)]
 #[derive(Debug)]
 pub struct Bridge {
@@ -34,18 +35,22 @@ fn bindgen_test_layout_Bridge() {
     );
 }
 extern "C" {
+    #[doc = " assign ptr"]
     #[link_name = "\u{1}?pset@Bridge@@QEAAXPEAD@Z"]
     pub fn Bridge_pset(this: *mut Bridge, p: *mut ::std::os::raw::c_char);
 }
 extern "C" {
+    #[doc = " display"]
     #[link_name = "\u{1}?put@Bridge@@QEAAXXZ"]
     pub fn Bridge_put(this: *mut Bridge);
 }
 extern "C" {
+    #[doc = " construct"]
     #[link_name = "\u{1}??0Bridge@@QEAA@XZ"]
     pub fn Bridge_Bridge(this: *mut Bridge);
 }
 extern "C" {
+    #[doc = " construct with ptr"]
     #[link_name = "\u{1}??0Bridge@@QEAA@PEAD@Z"]
     pub fn Bridge_Bridge1(this: *mut Bridge, s: *mut ::std::os::raw::c_char);
 }
@@ -72,9 +77,11 @@ impl Bridge {
     }
 }
 extern "C" {
+    #[doc = " destruct"]
     #[link_name = "\u{1}??_DBridge@@QEAAXXZ"]
     pub fn Bridge_Bridge_destructor(this: *mut Bridge);
 }
 extern "C" {
+    #[doc = " legacy C interface"]
     pub fn bput();
 }

@@ -249,8 +249,7 @@ pub fn new() -> dMass {
 pub struct Obg { // unsafe *mut xxx
   body: usize, // dBodyID,
   geom: usize, // dGeomID,
-  /// color
-  pub col: dVector4
+  pub col: dVector4 // color
 }
 
 impl Obg {
@@ -329,10 +328,8 @@ pub fn new() -> Fns {
 
 /// viewpoint(s) of ODE, cams: Vec&lt;Cam&gt;
 pub struct Cam {
-  /// pos, look at [0, 0, 0]
-  pub pos: Vec<f32>,
-  /// yaw, pitch, roll
-  pub ypr: Vec<f32>
+  pub pos: Vec<f32>, // pos, look at [0, 0, 0]
+  pub ypr: Vec<f32> // yaw, pitch, roll
 }
 
 impl Cam {
@@ -346,18 +343,14 @@ pub fn new(p: Vec<f32>, y: Vec<f32>) -> Cam {
 
 /// ODE singleton
 pub struct ODE { // unsafe
-  fns: Fns,
+  fns: Fns, // registered callback functions
   wire_solid: i32, // 0: wireframe, 1: solid (for bunny)
   polyfill_wireframe: i32, // 0: solid, 1: wireframe (for all)
-  sw_viewpoint: usize,
-  /// viewpoint(s)
-  pub cams: Vec<Cam>,
-  /// object(s)
-  pub obgs: Vec<Obg>,
-  /// singleton
-  pub gws: Gws,
-  /// step
-  pub t_delta: dReal
+  sw_viewpoint: usize, // switch viewpoint
+  pub cams: Vec<Cam>, // viewpoint(s)
+  pub obgs: Vec<Obg>, // object(s)
+  pub gws: Gws, // singleton
+  pub t_delta: dReal // step
 }
 
 /// $rf is registered function in Fns, $df is default callback used when None
@@ -375,7 +368,7 @@ unsafe {
 }
 // pub use ode_fn;
 
-/// ODE getter (always mut)
+/// ODE singleton getter (always mut)
 #[macro_export]
 macro_rules! ode_mut {
   () => { (&mut OYK_MUT)[0] };
@@ -746,6 +739,8 @@ pub fn default_stop_callback(rode: &mut ODE) {
   ostatln!("called default stop");
 }
 
+/// future implements drawing composite in this function
+/// wire_solid false/true for bunny
 pub fn draw_objects(rode: &mut ODE) {
   let _wire_solid = &rode.wire_solid; // for bunny
   let obgs = &rode.obgs;
