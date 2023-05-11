@@ -624,9 +624,9 @@ unsafe {
 
 /// future implements drawing composite in this function
 /// wire_solid false/true for bunny
-pub fn default_draw_objects(rode: &mut ODE) {
-  let _wire_solid = &rode.wire_solid; // for bunny
-  let obgs = &rode.obgs;
+pub fn default_draw_objects(&mut self) {
+  let _wire_solid = &self.wire_solid; // for bunny
+  let obgs = &self.obgs;
   for obg in obgs {
 unsafe {
     let c: Vec<f32> = obg.col.into_iter().map(|v| v as f32).collect();
@@ -648,7 +648,7 @@ unsafe {
 }
 
 /// start default callback function
-pub fn default_start_callback(rode: &mut ODE) {
+pub fn default_start_callback(&mut self) {
   ostatln!("called default start");
   ODE::viewpoint_();
 unsafe {
@@ -658,9 +658,9 @@ unsafe {
 }
 
 /// near default callback function
-pub fn default_near_callback(rode: &mut ODE, o1: dGeomID, o2: dGeomID) {
+pub fn default_near_callback(&mut self, o1: dGeomID, o2: dGeomID) {
   ostatln!("called default near");
-  let gws = &rode.gws;
+  let gws = &self.gws;
 unsafe {
   // if !(gws.ground() == o1 || gws.ground() == o2) { return; }
   const num: usize = 40;
@@ -681,10 +681,10 @@ unsafe {
 }
 
 /// step default callback function
-pub fn default_step_callback(rode: &mut ODE, pause: i32) {
+pub fn default_step_callback(&mut self, pause: i32) {
   ostatln!("called default step");
-  let gws = &rode.gws;
-  let t_delta = &rode.t_delta;
+  let gws = &self.gws;
+  let t_delta = &self.t_delta;
   if pause != 1 {
 unsafe {
     dSpaceCollide(gws.space(), 0 as *mut c_void, Some(c_near_callback));
@@ -692,11 +692,11 @@ unsafe {
     dJointGroupEmpty(gws.contactgroup());
 }
   }
-  ode_fn!(rode, draw, ODE::default_draw_objects)(rode);
+  ode_fn!(self, draw, ODE::default_draw_objects)(self);
 }
 
 /// command default callback function
-pub fn default_command_callback(rode: &mut ODE, cmd: i32) {
+pub fn default_command_callback(&mut self, cmd: i32) {
   ostatln!("called default command");
   match cmd as u8 as char {
     'p' => {
@@ -719,7 +719,7 @@ unsafe {
       ODE::viewpoint(true);
 unsafe {
       let sw_viewpoint: &mut usize = &mut ode_get_mut!(sw_viewpoint);
-      *sw_viewpoint = (*sw_viewpoint + 1) % rode.cams.len();
+      *sw_viewpoint = (*sw_viewpoint + 1) % self.cams.len();
 }
       ODE::viewpoint_();
       ODE::viewpoint(false);
@@ -727,14 +727,14 @@ unsafe {
     'r' => {
       ODE::clear_obgs();
       ODE::clear_contactgroup();
-      ode_fn!(rode, start, ODE::default_start_callback)(rode);
+      ode_fn!(self, start, ODE::default_start_callback)(self);
     },
     _ => {}
   }
 }
 
 /// stop default callback function
-pub fn default_stop_callback(rode: &mut ODE) {
+pub fn default_stop_callback(&mut self) {
   ostatln!("called default stop");
 }
 
