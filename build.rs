@@ -21,6 +21,16 @@ fn main() {
   let o_path: &str = s_path.as_str();
   let c_opt = if o_path == "." { "-std:c11" }else{ "-std=c++11" };
 
+  // default bindgen should not be inline otherwise link error
+  // cc with no default inline when bindgen .generate_inline_functions(true)
+  // -fno-implement-inlines : #pragma implementation
+  // -fkeep-inline-functions : ***CAUTION***
+  // -finline-functions : assume all inline ***CAUTION***
+  // -fno-inline : ignore all inline ***CAUTION***
+  // -fno-default-inline : not assume inline defined in the class
+  // let c_inl = if o_path == "." { "-Ob0" }else{ "-fno-default-inline" };
+  // let c_asm = if o_path == "." { "-Fa" }else{ "-S" };
+
   let mk_cc = |dname: &str, sname: &str, iname: &str, oname: &str| {
     let sd = PathBuf::from(dname);
     let fname = format!("{}", sd.join(sname).to_str().expect("invalid path"));
@@ -31,6 +41,8 @@ fn main() {
       // .flag("-std=c++11") // gcc
       // .flag("-std:c11") // cl
       // .flag("-std:c++14") // cl
+      // .flag(c_inl)
+      // .flag(c_asm)
       .include(iname)
       .compile(oname)
   };
@@ -55,7 +67,7 @@ fn main() {
   };
   if o_path == "." {
     mk_bindings("./include", "bridge.hpp", "./include", "bridge_bindings.rs",
-      false, true); // should not be inline otherwise link error
+      false, true); // cc should be compiled with option no default inline
     mk_bindings("./ode", "drawstuff.h", "./ode", "drawstuff_bindings.rs",
       false, true);
     mk_bindings("./ode", "ode.hpp", "./ode", "ode_bindings.rs",

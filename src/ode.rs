@@ -312,6 +312,7 @@ pub fn contactgroup(&self) -> dJointGroupID { as_id!(self, contactgroup) }
 
 /// object of ODE, fns: singleton (registered callback functions, textures)
 pub struct Fns {
+  draw: Option<fn(rode: &mut ODE)>,
   start: Option<fn(rode: &mut ODE)>,
   near: Option<fn(rode: &mut ODE, o1: dGeomID, o2: dGeomID)>,
   step: Option<fn(rode: &mut ODE, i32)>,
@@ -325,7 +326,8 @@ impl Fns {
 
 /// construct
 pub fn new() -> Fns {
-  Fns{start: None, near: None, step: None, command: None, stop: None,
+  Fns{draw: None,
+    start: None, near: None, step: None, command: None, stop: None,
     path_to_textures: None}
 }
 
@@ -368,14 +370,11 @@ pub struct ODE { // unsafe
 /// $rf is registered function in Fns, $df is default callback used when None
 #[macro_export]
 macro_rules! ode_fn {
-  ($rf: ident, $df: ident) => {
-unsafe {
-    let fns: &Fns = &ode_get!(fns);
-    match fns.$rf.as_ref() {
+  ($ro: ident, $rf: ident, $df: expr) => {
+    match $ro.fns.$rf.as_ref() {
       Some(f) => *f,
       None => $df
     }
-}
   };
 }
 // pub use ode_fn;
@@ -592,6 +591,7 @@ unsafe {
 /// default simulation loop
 pub fn sim_loop(
   width: i32, height: i32,
+  draw_fn: Option<fn(rode: &mut ODE)>,
   start_cb: Option<fn(rode: &mut ODE)>,
   near_cb: Option<fn(rode: &mut ODE, o1: dGeomID, o2: dGeomID)>,
   step_cb: Option<fn(rode: &mut ODE, pause: i32)>,
@@ -600,6 +600,7 @@ pub fn sim_loop(
   a: &[u8]) {
 unsafe {
   let fns: &mut Fns = &mut ode_get_mut!(fns);
+  fns.draw = draw_fn;
   fns.start = start_cb;
   fns.near = near_cb;
   fns.step = step_cb;
@@ -621,44 +622,29 @@ unsafe {
 }
 }
 
+/// future implements drawing composite in this function
+/// wire_solid false/true for bunny
+pub fn default_draw_objects(rode: &mut ODE) {
+  let _wire_solid = &rode.wire_solid; // for bunny
+  let obgs = &rode.obgs;
+  for obg in obgs {
+unsafe {
+    let c: Vec<f32> = obg.col.into_iter().map(|v| v as f32).collect();
+    dsSetColorAlpha(c[0], c[1], c[2], c[3]);
+    let geom: dGeomID = obg.geom();
+    let body: dBodyID = dGeomGetBody(geom); // same as obg.body()
+    let cls = dGeomGetClass(geom);
+    match cls {
+      dSphereClass => {
+        let pos: *const dReal = dBodyGetPosition(body);
+        let rot: *const dReal = dBodyGetRotation(body);
+        let radius: dReal = dGeomSphereGetRadius(geom);
+        dsDrawSphereD(pos, rot, radius as f32);
+      },
+      _ => { println!("unknown class: {}", cls); }
+    }
 }
-
-/// binding finalize ODE (auto called)
-impl Drop for ODE {
-  fn drop(&mut self) {
-    unsafe { dCloseODE(); }
-    ostatln!("dropped ODE");
   }
-}
-
-unsafe extern "C"
-fn c_start_callback() {
-  let rode: &mut ODE = &mut ode_mut!();
-  ode_fn!(start, default_start_callback)(rode);
-}
-
-unsafe extern "C"
-fn c_near_callback(_dat: *mut c_void, o1: dGeomID, o2: dGeomID) {
-  let rode: &mut ODE = &mut ode_mut!();
-  ode_fn!(near, default_near_callback)(rode, o1, o2);
-}
-
-unsafe extern "C"
-fn c_step_callback(pause: i32) {
-  let rode: &mut ODE = &mut ode_mut!();
-  ode_fn!(step, default_step_callback)(rode, pause);
-}
-
-unsafe extern "C"
-fn c_command_callback(cmd: i32) {
-  let rode: &mut ODE = &mut ode_mut!();
-  ode_fn!(command, default_command_callback)(rode, cmd);
-}
-
-unsafe extern "C"
-fn c_stop_callback() {
-  let rode: &mut ODE = &mut ode_mut!();
-  ode_fn!(stop, default_stop_callback)(rode);
 }
 
 /// start default callback function
@@ -706,7 +692,7 @@ unsafe {
     dJointGroupEmpty(gws.contactgroup());
 }
   }
-  draw_objects(rode);
+  ode_fn!(rode, draw, ODE::default_draw_objects)(rode);
 }
 
 /// command default callback function
@@ -741,7 +727,7 @@ unsafe {
     'r' => {
       ODE::clear_obgs();
       ODE::clear_contactgroup();
-      ode_fn!(start, default_start_callback)(rode);
+      ode_fn!(rode, start, ODE::default_start_callback)(rode);
     },
     _ => {}
   }
@@ -752,27 +738,42 @@ pub fn default_stop_callback(rode: &mut ODE) {
   ostatln!("called default stop");
 }
 
-/// future implements drawing composite in this function
-/// wire_solid false/true for bunny
-pub fn draw_objects(rode: &mut ODE) {
-  let _wire_solid = &rode.wire_solid; // for bunny
-  let obgs = &rode.obgs;
-  for obg in obgs {
-unsafe {
-    let c: Vec<f32> = obg.col.into_iter().map(|v| v as f32).collect();
-    dsSetColorAlpha(c[0], c[1], c[2], c[3]);
-    let geom: dGeomID = obg.geom();
-    let body: dBodyID = dGeomGetBody(geom); // same as obg.body()
-    let cls = dGeomGetClass(geom);
-    match cls {
-      dSphereClass => {
-        let pos: *const dReal = dBodyGetPosition(body);
-        let rot: *const dReal = dBodyGetRotation(body);
-        let radius: dReal = dGeomSphereGetRadius(geom);
-        dsDrawSphereD(pos, rot, radius as f32);
-      },
-      _ => { println!("unknown class: {}", cls); }
-    }
 }
+
+/// binding finalize ODE (auto called)
+impl Drop for ODE {
+  fn drop(&mut self) {
+    unsafe { dCloseODE(); }
+    ostatln!("dropped ODE");
   }
+}
+
+unsafe extern "C"
+fn c_start_callback() {
+  let rode: &mut ODE = &mut ode_mut!();
+  ode_fn!(rode, start, ODE::default_start_callback)(rode);
+}
+
+unsafe extern "C"
+fn c_near_callback(_dat: *mut c_void, o1: dGeomID, o2: dGeomID) {
+  let rode: &mut ODE = &mut ode_mut!();
+  ode_fn!(rode, near, ODE::default_near_callback)(rode, o1, o2);
+}
+
+unsafe extern "C"
+fn c_step_callback(pause: i32) {
+  let rode: &mut ODE = &mut ode_mut!();
+  ode_fn!(rode, step, ODE::default_step_callback)(rode, pause);
+}
+
+unsafe extern "C"
+fn c_command_callback(cmd: i32) {
+  let rode: &mut ODE = &mut ode_mut!();
+  ode_fn!(rode, command, ODE::default_command_callback)(rode, cmd);
+}
+
+unsafe extern "C"
+fn c_stop_callback() {
+  let rode: &mut ODE = &mut ode_mut!();
+  ode_fn!(rode, stop, ODE::default_stop_callback)(rode);
 }
