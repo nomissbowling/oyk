@@ -625,6 +625,7 @@ unsafe {
 /// future implements drawing composite in this function
 /// wire_solid false/true for bunny
 pub fn default_draw_objects(&mut self) {
+  ostatln!("called default draw");
   let _wire_solid = &self.wire_solid; // for bunny
   let obgs = &self.obgs;
   for obg in obgs {
