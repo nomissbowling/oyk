@@ -310,29 +310,6 @@ pub fn contactgroup(&self) -> dJointGroupID { as_id!(self, contactgroup) }
 // pub const ObgLen: usize = std::mem::size_of::<Obg>(); // 48
 // pub const GwsLen: usize = std::mem::size_of::<Gws>(); // 32
 
-/// object of ODE, fns: singleton (registered callback functions, textures)
-pub struct Fns {
-  draw: Option<fn(rode: &mut ODE)>,
-  start: Option<fn(rode: &mut ODE)>,
-  near: Option<fn(rode: &mut ODE, o1: dGeomID, o2: dGeomID)>,
-  step: Option<fn(rode: &mut ODE, i32)>,
-  command: Option<fn(rode: &mut ODE, i32)>,
-  stop: Option<fn(rode: &mut ODE)>,
-  path_to_textures: Option<U8zBuf>
-}
-
-/// callback functions
-impl Fns {
-
-/// construct
-pub fn new() -> Fns {
-  Fns{draw: None,
-    start: None, near: None, step: None, command: None, stop: None,
-    path_to_textures: None}
-}
-
-}
-
 /// viewpoint(s) of ODE, cams: Vec&lt;Cam&gt;
 pub struct Cam {
   /// pos, look at [0, 0, 0]
@@ -353,7 +330,8 @@ pub fn new(p: Vec<f32>, y: Vec<f32>) -> Cam {
 
 /// ODE singleton
 pub struct ODE { // unsafe
-  fns: Fns, // registered callback functions
+  sim: Option<Box<dyn Sim>>, // trait Sim must have callback functions
+  ptt: Option<U8zBuf>, // relative path to textures
   wire_solid: i32, // 0: wireframe, 1: solid (for bunny)
   polyfill_wireframe: i32, // 0: solid, 1: wireframe (for all)
   sw_viewpoint: usize, // switch viewpoint
@@ -367,17 +345,23 @@ pub struct ODE { // unsafe
   pub t_delta: dReal
 }
 
-/// $rf is registered function in Fns, $df is default callback used when None
+/// $rs is Sim instance, $rf is callback function in Sim
 #[macro_export]
-macro_rules! ode_fn {
-  ($ro: ident, $rf: ident, $df: expr) => {
-    match $ro.fns.$rf.as_ref() {
-      Some(f) => *f,
-      None => $df
+macro_rules! ode_sim {
+  ($rs: ident, $rf: ident) => {
+    match &mut $rs.sim {
+      Some(s) => s.$rf(),
+      None => $rs.$rf()
+    }
+  };
+  ($rs: ident, $rf: ident, $($e:expr),+) => {
+    match &mut $rs.sim {
+      Some(s) => s.$rf($($e),+),
+      None => $rs.$rf($($e),+)
     }
   };
 }
-// pub use ode_fn;
+// pub use ode_sim;
 
 /// ODE singleton getter (always mut)
 #[macro_export]
@@ -446,7 +430,8 @@ impl ODE {
 pub fn new(delta: dReal) -> ODE {
   ostatln!("new ODE");
   unsafe { dInitODE2(0); }
-  ODE{fns: Fns::new(), wire_solid: 1, polyfill_wireframe: 0, sw_viewpoint: 0,
+  ODE{sim: None, ptt: None,
+    wire_solid: 1, polyfill_wireframe: 0, sw_viewpoint: 0,
     cams: vec![
       Cam::new(vec![5.0, 0.0, 2.0], vec![-180.0, 0.0, 0.0]),
       Cam::new(vec![5.36, 2.02, 4.28], vec![-162.0, -31.0, 0.0]),
@@ -591,29 +576,20 @@ unsafe {
 /// default simulation loop
 pub fn sim_loop(
   width: i32, height: i32,
-  draw_fn: Option<fn(rode: &mut ODE)>,
-  start_cb: Option<fn(rode: &mut ODE)>,
-  near_cb: Option<fn(rode: &mut ODE, o1: dGeomID, o2: dGeomID)>,
-  step_cb: Option<fn(rode: &mut ODE, pause: i32)>,
-  command_cb: Option<fn(rode: &mut ODE, cmd: i32)>,
-  stop_cb: Option<fn(rode: &mut ODE)>,
+  r_sim: Option<Box<dyn Sim>>,
   a: &[u8]) {
 unsafe {
-  let fns: &mut Fns = &mut ode_get_mut!(fns);
-  fns.draw = draw_fn;
-  fns.start = start_cb;
-  fns.near = near_cb;
-  fns.step = step_cb;
-  fns.command = command_cb;
-  fns.stop = stop_cb;
-  fns.path_to_textures = Some(U8zBuf::from_u8array(a)); // to keep lifetime
+  let sim: &mut Option<Box<dyn Sim>> = &mut ode_get_mut!(sim);
+  *sim = r_sim;
+  let ptt: &mut Option<U8zBuf> = &mut ode_get_mut!(ptt);
+  *ptt = Some(U8zBuf::from_u8array(a)); // to keep lifetime
   let mut dsfn: dsFunctions = dsFunctions{
     version: DS_VERSION,
     start: Some(c_start_callback), // Option<unsafe extern "C" fn()>
     step: Some(c_step_callback), // Option<unsafe extern "C" fn(i32)>
     command: Some(c_command_callback), // Option<unsafe extern "C" fn(i32)>
     stop: Some(c_stop_callback), // Option<unsafe extern "C" fn()>
-    path_to_textures: fns.path_to_textures.as_ref().expect("not init").as_i8p()
+    path_to_textures: ptt.as_ref().expect("not init").as_i8p()
   };
 
   let mut cab: CArgsBuf = CArgsBuf::from(&std::env::args().collect());
@@ -622,9 +598,45 @@ unsafe {
 }
 }
 
+} // impl ODE
+
+/// binding finalize ODE (auto called)
+impl Drop for ODE {
+  fn drop(&mut self) {
+    unsafe { dCloseODE(); }
+    ostatln!("dropped ODE");
+  }
+}
+
+/// trait Sim must have callback functions
+pub trait Sim {
+  /// get super mut
+  fn super_mut(&mut self) -> &mut ODE {
+unsafe {
+    &mut ode_mut!()
+}
+  }
+
+  /// draw default function
+  fn draw_objects(&mut self);
+  /// start default callback function
+  fn start_callback(&mut self);
+  /// near default callback function
+  fn near_callback(&mut self, o1: dGeomID, o2: dGeomID);
+  /// step default callback function
+  fn step_callback(&mut self, pause: i32);
+  /// command default callback function
+  fn command_callback(&mut self, cmd: i32);
+  /// stop default callback function
+  fn stop_callback(&mut self);
+}
+
+/// trait Sim must have callback functions
+impl Sim for ODE {
+
 /// future implements drawing composite in this function
 /// wire_solid false/true for bunny
-pub fn default_draw_objects(&mut self) {
+fn draw_objects(&mut self) {
   ostatln!("called default draw");
   let _wire_solid = &self.wire_solid; // for bunny
   let obgs = &self.obgs;
@@ -649,7 +661,7 @@ unsafe {
 }
 
 /// start default callback function
-pub fn default_start_callback(&mut self) {
+fn start_callback(&mut self) {
   ostatln!("called default start");
   ODE::viewpoint_();
 unsafe {
@@ -659,7 +671,7 @@ unsafe {
 }
 
 /// near default callback function
-pub fn default_near_callback(&mut self, o1: dGeomID, o2: dGeomID) {
+fn near_callback(&mut self, o1: dGeomID, o2: dGeomID) {
   ostatln!("called default near");
   let gws = &self.gws;
 unsafe {
@@ -682,7 +694,7 @@ unsafe {
 }
 
 /// step default callback function
-pub fn default_step_callback(&mut self, pause: i32) {
+fn step_callback(&mut self, pause: i32) {
   ostatln!("called default step");
   let gws = &self.gws;
   let t_delta = &self.t_delta;
@@ -693,11 +705,11 @@ unsafe {
     dJointGroupEmpty(gws.contactgroup());
 }
   }
-  ode_fn!(self, draw, ODE::default_draw_objects)(self);
+  ode_sim!(self, draw_objects)
 }
 
 /// command default callback function
-pub fn default_command_callback(&mut self, cmd: i32) {
+fn command_callback(&mut self, cmd: i32) {
   ostatln!("called default command");
   match cmd as u8 as char {
     'p' => {
@@ -728,53 +740,45 @@ unsafe {
     'r' => {
       ODE::clear_obgs();
       ODE::clear_contactgroup();
-      ode_fn!(self, start, ODE::default_start_callback)(self);
+      ode_sim!(self, start_callback)
     },
     _ => {}
   }
 }
 
 /// stop default callback function
-pub fn default_stop_callback(&mut self) {
+fn stop_callback(&mut self) {
   ostatln!("called default stop");
 }
 
-}
-
-/// binding finalize ODE (auto called)
-impl Drop for ODE {
-  fn drop(&mut self) {
-    unsafe { dCloseODE(); }
-    ostatln!("dropped ODE");
-  }
-}
+} // impl Sim for ODE
 
 unsafe extern "C"
 fn c_start_callback() {
   let rode: &mut ODE = &mut ode_mut!();
-  ode_fn!(rode, start, ODE::default_start_callback)(rode);
+  ode_sim!(rode, start_callback)
 }
 
 unsafe extern "C"
 fn c_near_callback(_dat: *mut c_void, o1: dGeomID, o2: dGeomID) {
   let rode: &mut ODE = &mut ode_mut!();
-  ode_fn!(rode, near, ODE::default_near_callback)(rode, o1, o2);
+  ode_sim!(rode, near_callback, o1, o2)
 }
 
 unsafe extern "C"
 fn c_step_callback(pause: i32) {
   let rode: &mut ODE = &mut ode_mut!();
-  ode_fn!(rode, step, ODE::default_step_callback)(rode, pause);
+  ode_sim!(rode, step_callback, pause)
 }
 
 unsafe extern "C"
 fn c_command_callback(cmd: i32) {
   let rode: &mut ODE = &mut ode_mut!();
-  ode_fn!(rode, command, ODE::default_command_callback)(rode, cmd);
+  ode_sim!(rode, command_callback, cmd)
 }
 
 unsafe extern "C"
 fn c_stop_callback() {
   let rode: &mut ODE = &mut ode_mut!();
-  ode_fn!(rode, stop, ODE::default_stop_callback)(rode);
+  ode_sim!(rode, stop_callback)
 }
