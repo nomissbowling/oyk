@@ -61,6 +61,9 @@ pub use cppode::{dMatrix4, dMatrix3, dVector4, dVector3, dReal}; // 16 12 4 4
 
 use asciiz::u8z::{U8zBuf, u8zz::{CArgsBuf}};
 
+pub extern crate impl_sim;
+// pub use impl_sim::{impl_sim_fn, impl_sim_derive};
+
 // std::any::type_name_of_val https://github.com/rust-lang/rust/issues/66359
 fn fake_type_name_of_val<T>(_: &T) -> &'static str {
   std::any::type_name::<T>()
