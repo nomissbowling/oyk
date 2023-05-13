@@ -253,7 +253,7 @@ pub fn new() -> dMass {
 
 }
 
-/// object(s) of ODE, obgs: Vec&lt;Obg&gt;
+/// object(s) of ODE, obgs: VecDeque&lt;Obg&gt;
 pub struct Obg { // unsafe *mut xxx
   body: usize, // dBodyID,
   geom: usize, // dGeomID,
