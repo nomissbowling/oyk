@@ -59,6 +59,10 @@ pub use cppode::{dMatrix4, dMatrix3, dVector4, dVector3, dReal}; // 16 12 4 4
 #[warn(non_camel_case_types)]
 #[warn(non_upper_case_globals)]
 
+// use std::collections::HashMap; // with #[derive(PartialEq, Eq, Hash)] struct
+use std::collections::BTreeMap;
+use std::collections::VecDeque;
+
 use asciiz::u8z::{U8zBuf, u8zz::{CArgsBuf}};
 
 pub extern crate impl_sim;
@@ -340,8 +344,10 @@ pub struct ODE { // unsafe
   sw_viewpoint: usize, // switch viewpoint
   /// viewpoint(s)
   pub cams: Vec<Cam>,
-  /// object(s)
-  pub obgs: Vec<Obg>,
+  /// object(s) ordered
+  pub obgs: VecDeque<Obg>,
+  /// object(s) mapped
+  pub mbgs: BTreeMap<String, usize>,
   /// singleton
   pub gws: Gws,
   /// step
@@ -366,21 +372,28 @@ macro_rules! ode_sim {
 }
 // pub use ode_sim;
 
-/// ODE singleton getter (always mut)
+/// ODE singleton getter (mutable)
 #[macro_export]
 macro_rules! ode_mut {
   () => { (&mut OYK_MUT)[0] };
 }
 // pub use ode_mut;
 
-/// ODE attribute getter (mut)
+/// ODE singleton getter (immutable)
+#[macro_export]
+macro_rules! ode_ {
+  () => { (&OYK_MUT)[0] };
+}
+// pub use ode_;
+
+/// ODE attribute getter (mutable)
 #[macro_export]
 macro_rules! ode_get_mut {
   ($src: ident) => { (&mut OYK_MUT)[0].$src };
 }
 // pub use ode_get_mut;
 
-/// ODE attribute getter (not mut)
+/// ODE attribute getter (immutable)
 #[macro_export]
 macro_rules! ode_get {
   ($src: ident) => { (&OYK_MUT)[0].$src };
@@ -442,7 +455,8 @@ pub fn new(delta: dReal) -> ODE {
       Cam::new(vec![4.0, 3.0, 5.0], vec![-150.0, -30.0, 3.0]),
       Cam::new(vec![10.0, 10.0, 5.0], vec![-150.0, 0.0, 3.0]),
       Cam::new(vec![5.0, 0.0, 1.0], vec![-180.0, 0.0, 0.0])],
-    obgs: vec![], gws: Gws::new(), t_delta: delta}
+    obgs: vec![].into(), mbgs: vec![].into_iter().collect(),
+    gws: Gws::new(), t_delta: delta}
 }
 
 /// ODE initialize
@@ -501,25 +515,62 @@ unsafe {
 }
 }
 
-/// make sphere primitive object (need register to show on the ODE space world)
-pub fn mk_sphere(m: dReal, r: dReal, col: &dVector4, pos: &dVector3) -> Obg {
+/// make sphere primitive object (register it to show on the ODE space world)
+pub fn mk_sphere(&mut self, k: String,
+  m: dReal, r: dReal, col: &dVector4, pos: &dVector3) -> usize {
   let mut mass: dMass = dMass::new();
 unsafe {
-  let gws: &mut Gws = &mut ode_get_mut!(gws);
+  let gws: &mut Gws = &mut self.gws;
   dMassSetSphereTotal(&mut mass, m, r);
   let body: dBodyID = dBodyCreate(gws.world());
   dBodySetMass(body, &mass);
   let geom: dGeomID = dCreateSphere(gws.space(), r);
   dGeomSetBody(geom, body);
   dBodySetPosition(body, pos[0], pos[1], pos[2]);
-  Obg::new(body, geom, col) // in unsafe {}, otherwise ambiguous Self body geom
+  let obg: Obg = Obg::new(body, geom, col);
+  self.reg(k, obg) // in unsafe {}, otherwise ambiguous Self body geom
 }
+}
+
+/// register object (to VecDeque and BTreeMap)
+pub fn reg(&mut self, k: String, obg: Obg) -> usize {
+  let obgs: &mut VecDeque<Obg> = &mut self.obgs;
+  obgs.push_back(obg);
+  let i: usize = obgs.len() - 1;
+  let mbgs: &mut BTreeMap<String, usize> = &mut self.mbgs;
+  mbgs.insert(k, i);
+  i
+}
+
+/// search object (from BTreeMap and VecDeque)
+pub fn find_mut(&mut self, k: String) -> &mut Obg {
+  let mbgs: &mut BTreeMap<String, usize> = &mut self.mbgs;
+  let i: usize = mbgs[&k];
+  let obgs: &mut VecDeque<Obg> = &mut self.obgs;
+  &mut obgs[i]
+}
+
+/// search object (from BTreeMap and VecDeque)
+pub fn find(&self, k: String) -> &Obg {
+  let mbgs: &BTreeMap<String, usize> = &self.mbgs;
+  let i: usize = mbgs[&k];
+  let obgs: &VecDeque<Obg> = &self.obgs;
+  &obgs[i]
 }
 
 /// destroy object (not unregister)
 pub fn destroy_obg(obg: &Obg) {
 unsafe {
-  dGeomDestroy(obg.geom());
+  // dGeomDestroy(obg.geom()); // not use it
+  let mut geom: dGeomID = dBodyGetFirstGeom(obg.body());
+  while(geom != 0 as dGeomID){
+    let nextgeom: dGeomID = dBodyGetNextGeom(geom);
+    // dGeomTriMeshDataDestroy(tmd); // when geom has dTriMeshDataID tmd
+    // UnMapGeomTriMesh(geom); // needless (to be deleted in clear_obgs())
+    // UnMapGeomConvex(geom); // needless (to be deleted in clear_obgs())
+    dGeomDestroy(geom);
+    geom = nextgeom;
+  }
   dBodyDestroy(obg.body());
 }
 }
@@ -527,11 +578,13 @@ unsafe {
 /// destroy and unregister all objects
 pub fn clear_obgs() {
 unsafe {
-  let obgs: &mut Vec<Obg> = &mut ode_get_mut!(obgs);
+  let obgs: &mut VecDeque<Obg> = &mut ode_get_mut!(obgs);
   for obg in &mut *obgs {
     ODE::destroy_obg(obg); // not obgs.pop();
   }
   obgs.clear();
+  let mbgs: &mut BTreeMap<String, usize> = &mut ode_get_mut!(mbgs);
+  mbgs.clear();
 }
 }
 
@@ -613,10 +666,17 @@ impl Drop for ODE {
 
 /// trait Sim must have callback functions
 pub trait Sim {
-  /// get super mut
+  /// self.super mutable
   fn super_mut(&mut self) -> &mut ODE {
 unsafe {
     &mut ode_mut!()
+}
+  }
+
+  /// self.super immutable
+  fn super_get(&self) -> &ODE {
+unsafe {
+    &ode_!()
 }
   }
 
