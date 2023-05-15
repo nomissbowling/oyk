@@ -106,6 +106,57 @@ impl Error for ODEError {
   }
 }
 
+/// mat as slice
+#[derive(Debug)]
+pub struct ODEMat<'a> {
+  nr: usize,
+  nc: usize,
+  mat: &'a [dReal]
+}
+
+/// mat as slice
+impl ODEMat<'_> {
+  /// construct
+  pub fn from_slice(nr: usize, nc: usize, mat: &[dReal]) -> ODEMat {
+    ODEMat{nr: nr, nc: nc, mat: mat}
+  }
+
+  /// construct
+  pub fn as_vec(mat: &[dReal]) -> ODEMat {
+    ODEMat::from_slice(1, 4, mat)
+  }
+
+  /// construct
+  pub fn as_mat(nr: usize, mat: &[dReal]) -> ODEMat {
+    ODEMat::from_slice(nr, 4, mat)
+  }
+}
+
+/// mat formatter
+impl fmt::Display for ODEMat<'_> {
+  /// mat formatter
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self.nr {
+      1 => {
+        write!(f, "[");
+        for (j, col) in self.mat.iter().enumerate() {
+          if j != 0 { write!(f, ","); }
+          write!(f, "{:17.7}", col);
+        }
+        write!(f, "]")
+      },
+      _ => {
+        writeln!(f, "[");
+        for (i, row) in self.mat.chunks_exact(self.nc).enumerate() {
+          write!(f, " {}", ODEMat::from_slice(1, 4, row));
+          if i < self.nr - 1 { writeln!(f, ""); };
+        }
+        write!(f, "]")
+      }
+    }
+  }
+}
+
 // std::any::type_name_of_val https://github.com/rust-lang/rust/issues/66359
 fn fake_type_name_of_val<T>(_: &T) -> &'static str {
   std::any::type_name::<T>()
@@ -327,8 +378,7 @@ unsafe {
 /// pos dVector3 as &mut [dReal] 4 usize
 pub fn pos_(&mut self) -> &mut [dReal] {
 unsafe {
-  let p: *mut dReal = dBodyGetPosition(self.body()) as *mut dReal;
-  std::slice::from_raw_parts_mut(p, 4)
+  std::slice::from_raw_parts_mut(self.pos_ptr_mut() as *mut dReal, 4)
 }
 }
 
@@ -338,6 +388,11 @@ unsafe {
   let p: *const dReal = dBodyGetPosition(self.body());
   std::slice::from_raw_parts(p, 4)
 }
+}
+
+/// pos dVector3 as ODEMat
+pub fn pos_vec(&self) -> ODEMat {
+  ODEMat::as_vec(self.pos())
 }
 
 /// rot dMatrix3 as *mut [[dReal; 4]; 3]
@@ -351,8 +406,7 @@ unsafe {
 /// rot dMatrix3 as &mut [dReal] 12 usize
 pub fn rot_(&mut self) -> &mut [dReal] {
 unsafe {
-  let p: *mut dReal = dBodyGetRotation(self.body()) as *mut dReal;
-  std::slice::from_raw_parts_mut(p, 12)
+  std::slice::from_raw_parts_mut(self.rot_ptr_mut() as *mut dReal, 12)
 }
 }
 
@@ -364,16 +418,9 @@ unsafe {
 }
 }
 
-/// rot
-pub fn rot_disp(&self, s: &str) {
-  let rot = self.rot();
-  print!("{}", s);
-  for (i, r) in rot.chunks_exact(4).enumerate(){
-    print!("{}", if i > 0 { " ".repeat(s.len() + 1) }else{ "[".to_string() });
-    print!("{:?}", r);
-    print!("{}", if i < 2 { "\n" } else { "" });
-  }
-  println!("]");
+/// rot dMatrix3 as ODEMat
+pub fn rot_mat3(&self) -> ODEMat {
+  ODEMat::as_mat(3, self.rot())
 }
 
 }
