@@ -59,14 +59,52 @@ pub use cppode::{dMatrix4, dMatrix3, dVector4, dVector3, dReal}; // 16 12 4 4
 #[warn(non_camel_case_types)]
 #[warn(non_upper_case_globals)]
 
-// use std::collections::HashMap; // with #[derive(PartialEq, Eq, Hash)] struct
+use std::collections::HashMap; // with #[derive(PartialEq, Eq, Hash)] struct
 use std::collections::BTreeMap;
-use std::collections::VecDeque;
+// use std::collections::VecDeque;
 
 use asciiz::u8z::{U8zBuf, u8zz::{CArgsBuf}};
 
 pub extern crate impl_sim;
 // pub use impl_sim::{impl_sim_fn, impl_sim_derive};
+
+use std::fmt;
+use std::error::Error;
+
+/// for Result&lt;_, Box&lt;dyn Error&gt;&gt; handling
+#[derive(Debug)]
+pub struct ODEError {
+  msg: String
+}
+
+/// for Result&lt;_, Box&lt;dyn Error&gt;&gt; handling
+impl ODEError {
+  /// construct
+  pub fn no_key(k: String) -> ODEError {
+    ODEError{msg: format!("no key [{}] in mbgs", k)}
+  }
+
+  /// construct
+  pub fn no_id(id: dBodyID) -> ODEError {
+    ODEError{msg: format!("no id {:018p} in obgs", id)}
+  }
+}
+
+/// formatter
+impl fmt::Display for ODEError {
+  /// formatter
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "ODEError: {}", self.msg)
+  }
+}
+
+/// &lt;dyn Error&gt; handler
+impl Error for ODEError {
+  /// &lt;dyn Error&gt; handler
+  fn source(&self) -> Option<&(dyn Error + 'static)> {
+    Some(self)
+  }
+}
 
 // std::any::type_name_of_val https://github.com/rust-lang/rust/issues/66359
 fn fake_type_name_of_val<T>(_: &T) -> &'static str {
@@ -253,7 +291,7 @@ pub fn new() -> dMass {
 
 }
 
-/// object(s) of ODE, obgs: VecDeque&lt;Obg&gt;
+/// object(s) of ODE, obgs: HashMap&lt;dBodyID, Obg&gt;
 pub struct Obg { // unsafe *mut xxx
   body: usize, // dBodyID,
   geom: usize, // dGeomID,
@@ -277,6 +315,67 @@ pub fn body(&self) -> dBodyID { as_id!(self, body) }
 pub fn geom_(&mut self, id: dGeomID) { from_id!(obg: self, id); }
 /// getter
 pub fn geom(&self) -> dGeomID { as_id!(self, geom) }
+
+/// pos dVector3 as *mut [dReal; 4]
+pub fn pos_ptr_mut(&mut self) -> *mut [dReal; 4] {
+unsafe {
+  let p: *mut dReal = dBodyGetPosition(self.body()) as *mut dReal;
+  p as *mut [dReal; 4]
+}
+}
+
+/// pos dVector3 as &mut [dReal] 4 usize
+pub fn pos_(&mut self) -> &mut [dReal] {
+unsafe {
+  let p: *mut dReal = dBodyGetPosition(self.body()) as *mut dReal;
+  std::slice::from_raw_parts_mut(p, 4)
+}
+}
+
+/// pos dVector3 as &[dReal] 4 usize
+pub fn pos(&self) -> &[dReal] {
+unsafe {
+  let p: *const dReal = dBodyGetPosition(self.body());
+  std::slice::from_raw_parts(p, 4)
+}
+}
+
+/// rot dMatrix3 as *mut [[dReal; 4]; 3]
+pub fn rot_ptr_mut(&mut self) -> *mut [[dReal; 4]; 3] {
+unsafe {
+  let p: *mut dReal = dBodyGetRotation(self.body()) as *mut dReal;
+  p as *mut [[dReal; 4]; 3]
+}
+}
+
+/// rot dMatrix3 as &mut [dReal] 12 usize
+pub fn rot_(&mut self) -> &mut [dReal] {
+unsafe {
+  let p: *mut dReal = dBodyGetRotation(self.body()) as *mut dReal;
+  std::slice::from_raw_parts_mut(p, 12)
+}
+}
+
+/// rot dMatrix3 as &[dReal] 12 usize
+pub fn rot(&self) -> &[dReal] {
+unsafe {
+  let p: *const dReal = dBodyGetRotation(self.body());
+  std::slice::from_raw_parts(p, 12)
+}
+}
+
+/// rot
+pub fn rot_disp(&self, s: &str) {
+  let rot = self.rot();
+  print!("{}", s);
+  for (i, r) in rot.chunks_exact(4).enumerate(){
+    print!("{}", if i > 0 { " ".repeat(s.len() + 1) }else{ "[".to_string() });
+    print!("{:?}", r);
+    print!("{}", if i < 2 { "\n" } else { "" });
+  }
+  println!("]");
+}
+
 }
 
 /// object of ODE, gws: singleton
@@ -344,10 +443,10 @@ pub struct ODE { // unsafe
   sw_viewpoint: usize, // switch viewpoint
   /// viewpoint(s)
   pub cams: Vec<Cam>,
-  /// object(s) ordered
-  pub obgs: VecDeque<Obg>,
   /// object(s) mapped
-  pub mbgs: BTreeMap<String, usize>,
+  pub obgs: HashMap<dBodyID, Obg>,
+  /// object id(s) ordered mapped
+  pub mbgs: BTreeMap<String, dBodyID>,
   /// singleton
   pub gws: Gws,
   /// step
@@ -455,7 +554,7 @@ pub fn new(delta: dReal) -> ODE {
       Cam::new(vec![4.0, 3.0, 5.0], vec![-150.0, -30.0, 3.0]),
       Cam::new(vec![10.0, 10.0, 5.0], vec![-150.0, 0.0, 3.0]),
       Cam::new(vec![5.0, 0.0, 1.0], vec![-180.0, 0.0, 0.0])],
-    obgs: vec![].into(), mbgs: vec![].into_iter().collect(),
+    obgs: vec![].into_iter().collect(), mbgs: vec![].into_iter().collect(),
     gws: Gws::new(), t_delta: delta}
 }
 
@@ -517,7 +616,7 @@ unsafe {
 
 /// make sphere primitive object (register it to show on the ODE space world)
 pub fn mk_sphere(&mut self, k: String,
-  m: dReal, r: dReal, col: &dVector4, pos: &dVector3) -> usize {
+  m: dReal, r: dReal, col: &dVector4, pos: &dVector3) -> dBodyID {
   let mut mass: dMass = dMass::new();
 unsafe {
   let gws: &mut Gws = &mut self.gws;
@@ -532,30 +631,32 @@ unsafe {
 }
 }
 
-/// register object (to VecDeque and BTreeMap)
-pub fn reg(&mut self, k: String, obg: Obg) -> usize {
-  let obgs: &mut VecDeque<Obg> = &mut self.obgs;
-  obgs.push_back(obg);
-  let i: usize = obgs.len() - 1;
-  let mbgs: &mut BTreeMap<String, usize> = &mut self.mbgs;
-  mbgs.insert(k, i);
-  i
+/// register object (to HashMap and BTreeMap)
+pub fn reg(&mut self, k: String, obg: Obg) -> dBodyID {
+  let id = obg.body();
+  let obgs: &mut HashMap<dBodyID, Obg> = &mut self.obgs;
+  obgs.insert(id, obg);
+  let mbgs: &mut BTreeMap<String, dBodyID> = &mut self.mbgs;
+  mbgs.insert(k, id);
+  id
 }
 
-/// search object (from BTreeMap and VecDeque)
-pub fn find_mut(&mut self, k: String) -> &mut Obg {
-  let mbgs: &mut BTreeMap<String, usize> = &mut self.mbgs;
-  let i: usize = mbgs[&k];
-  let obgs: &mut VecDeque<Obg> = &mut self.obgs;
-  &mut obgs[i]
+/// search object (from BTreeMap and HashMap)
+pub fn find_mut(&mut self, k: String) -> Result<&mut Obg, Box<dyn Error>> {
+  let mbgs: &mut BTreeMap<String, dBodyID> = &mut self.mbgs;
+  let obgs: &mut HashMap<dBodyID, Obg> = &mut self.obgs;
+  // not use Some(&mut obgs[&mbgs[&k]])
+  let id: &dBodyID = mbgs.get(&k).ok_or(ODEError::no_key(k))?;
+  Ok(obgs.get_mut(id).ok_or(ODEError::no_id(*id))?)
 }
 
-/// search object (from BTreeMap and VecDeque)
-pub fn find(&self, k: String) -> &Obg {
-  let mbgs: &BTreeMap<String, usize> = &self.mbgs;
-  let i: usize = mbgs[&k];
-  let obgs: &VecDeque<Obg> = &self.obgs;
-  &obgs[i]
+/// search object (from BTreeMap and HashMap)
+pub fn find(&self, k: String) -> Result<&Obg, Box<dyn Error>> {
+  let mbgs: &BTreeMap<String, dBodyID> = &self.mbgs;
+  let obgs: &HashMap<dBodyID, Obg> = &self.obgs;
+  // not use Some(&obgs[&mbgs[&k]])
+  let id: &dBodyID = mbgs.get(&k).ok_or(ODEError::no_key(k))?;
+  Ok(obgs.get(id).ok_or(ODEError::no_id(*id))?)
 }
 
 /// destroy object (not unregister)
@@ -578,12 +679,13 @@ unsafe {
 /// destroy and unregister all objects
 pub fn clear_obgs() {
 unsafe {
-  let obgs: &mut VecDeque<Obg> = &mut ode_get_mut!(obgs);
-  for obg in &mut *obgs {
-    ODE::destroy_obg(obg); // not obgs.pop();
+  let obgs: &HashMap<dBodyID, Obg> = &ode_get!(obgs);
+  for (id, obg) in obgs {
+    ODE::destroy_obg(obg); // not obgs.remove(id);
   }
+  let obgs: &mut HashMap<dBodyID, Obg> = &mut ode_get_mut!(obgs);
   obgs.clear();
-  let mbgs: &mut BTreeMap<String, usize> = &mut ode_get_mut!(mbgs);
+  let mbgs: &mut BTreeMap<String, dBodyID> = &mut ode_get_mut!(mbgs);
   mbgs.clear();
 }
 }
@@ -703,7 +805,7 @@ fn draw_objects(&mut self) {
   ostatln!("called default draw");
   let _wire_solid = &self.wire_solid; // for bunny
   let obgs = &self.obgs;
-  for obg in obgs {
+  for (id, obg) in obgs {
 unsafe {
     let c: Vec<f32> = obg.col.into_iter().map(|v| v as f32).collect();
     dsSetColorAlpha(c[0], c[1], c[2], c[3]);
