@@ -148,13 +148,20 @@ impl fmt::Display for ODEMat<'_> {
       _ => {
         writeln!(f, "[");
         for (i, row) in self.mat.chunks_exact(self.nc).enumerate() {
-          write!(f, " {}", ODEMat::from_slice(1, 4, row));
+          write!(f, " {}", ODEMat::as_vec(row));
           if i < self.nr - 1 { writeln!(f, ""); };
         }
         write!(f, "]")
       }
     }
   }
+}
+
+// std::convert::TryInto
+/// construct array [T; N] (dVector3 dMatrix3 etc) from vec![]
+pub fn varray<T, const N: usize>(v: Vec<T>) -> [T; N] {
+  v.try_into().unwrap_or_else(|v: Vec<T>|
+    panic!("Expected a Vec of length {} but it was {}", N, v.len()))
 }
 
 // std::any::type_name_of_val https://github.com/rust-lang/rust/issues/66359
@@ -263,7 +270,7 @@ pub static COLORS: Lazy<Vec<u32>> = Lazy::new(|| vec![
 
 /// u32 RGBA (little endian) to dVector4 color
 pub fn vec4_from_u32(col: u32) -> dVector4 {
-  let mut c: dVector4 = [0.0, 0.0, 0.0, 0.0];
+  let mut c: dVector4 = varray(vec![0.0; 4]);
   let p: usize = &col as *const u32 as usize;
   for j in 0..4 {
 unsafe {
@@ -302,8 +309,8 @@ impl dContactGeom {
 /// binding construct dContactGeom
 pub fn new() -> dContactGeom {
   dContactGeom{
-    pos: [0.0, 0.0, 0.0, 0.0], // dVector3
-    normal: [0.0, 0.0, 0.0, 0.0], // dVector3
+    pos: varray(vec![0.0; 4]), // dVector3
+    normal: varray(vec![0.0; 4]), // dVector3
     depth: 0.0, // dReal
     g1: 0 as dGeomID,
     g2: 0 as dGeomID,
@@ -320,7 +327,7 @@ pub fn new() -> dContact {
   dContact{
     surface: dSurfaceParameters::new(),
     geom: dContactGeom::new(),
-    fdir1: [0.0, 0.0, 0.0, 0.0]} // dVector3
+    fdir1: varray(vec![0.0; 4])} // dVector3
 }
 
 }
@@ -331,11 +338,8 @@ impl dMass {
 pub fn new() -> dMass {
   let mut mass: dMass = dMass{
     mass: 0.0,
-    c: [0.0, 0.0, 0.0, 0.0], // dVector3
-    I: [ // dMatrix3
-      0.0, 0.0, 0.0, 0.0,
-      0.0, 0.0, 0.0, 0.0,
-      0.0, 0.0, 0.0, 0.0]};
+    c: varray(vec![0.0; 4]), // dVector3
+    I: varray(vec![0.0; 12])}; // dMatrix3
   unsafe { dMassSetZero(&mut mass); } // may be needless
   mass
 }
