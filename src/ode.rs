@@ -59,429 +59,32 @@ pub use cppode::{dMatrix4, dMatrix3, dVector4, dVector3, dReal}; // 16 12 4 4
 #[warn(non_camel_case_types)]
 #[warn(non_upper_case_globals)]
 
+use std::error::Error;
+
+pub mod err;
+use err::*;
+
+pub mod mat;
+use mat::*;
+
+pub mod cls;
+use cls::*;
+
 use std::collections::HashMap; // with #[derive(PartialEq, Eq, Hash)] struct
 use std::collections::BTreeMap;
 // use std::collections::VecDeque;
 
 use asciiz::u8z::{U8zBuf, u8zz::{CArgsBuf}};
 
+use std::ffi::{c_void};
+
 pub extern crate impl_sim;
 // pub use impl_sim::{impl_sim_fn, impl_sim_derive};
-
-use std::fmt;
-use std::error::Error;
-
-/// for Result&lt;_, Box&lt;dyn Error&gt;&gt; handling
-#[derive(Debug)]
-pub struct ODEError {
-  msg: String
-}
-
-/// for Result&lt;_, Box&lt;dyn Error&gt;&gt; handling
-impl ODEError {
-  /// construct
-  pub fn no_key(k: String) -> ODEError {
-    ODEError{msg: format!("no key [{}] in mbgs", k)}
-  }
-
-  /// construct
-  pub fn no_id(id: dBodyID) -> ODEError {
-    ODEError{msg: format!("no id {:018p} in obgs", id)}
-  }
-}
-
-/// formatter
-impl fmt::Display for ODEError {
-  /// formatter
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "ODEError: {}", self.msg)
-  }
-}
-
-/// &lt;dyn Error&gt; handler
-impl Error for ODEError {
-  /// &lt;dyn Error&gt; handler
-  fn source(&self) -> Option<&(dyn Error + 'static)> {
-    Some(self)
-  }
-}
-
-/// mat as slice
-#[derive(Debug)]
-pub struct ODEMat<'a> {
-  nr: usize,
-  nc: usize,
-  mat: &'a [dReal]
-}
-
-/// mat as slice
-impl ODEMat<'_> {
-  /// construct
-  pub fn from_slice(nr: usize, nc: usize, mat: &[dReal]) -> ODEMat {
-    ODEMat{nr: nr, nc: nc, mat: mat}
-  }
-
-  /// construct
-  pub fn as_vec(mat: &[dReal]) -> ODEMat {
-    ODEMat::from_slice(1, 4, mat)
-  }
-
-  /// construct
-  pub fn as_mat(nr: usize, mat: &[dReal]) -> ODEMat {
-    ODEMat::from_slice(nr, 4, mat)
-  }
-}
-
-/// mat formatter
-impl fmt::Display for ODEMat<'_> {
-  /// mat formatter
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    match self.nr {
-      1 => {
-        write!(f, "[");
-        for (j, col) in self.mat.iter().enumerate() {
-          if j != 0 { write!(f, ","); }
-          write!(f, "{:17.7}", col);
-        }
-        write!(f, "]")
-      },
-      _ => {
-        writeln!(f, "[");
-        for (i, row) in self.mat.chunks_exact(self.nc).enumerate() {
-          write!(f, " {}", ODEMat::as_vec(row));
-          if i < self.nr - 1 { writeln!(f, ""); };
-        }
-        write!(f, "]")
-      }
-    }
-  }
-}
-
-// std::convert::TryInto
-/// construct array [T; N] (dVector3 dMatrix3 etc) from vec![]
-pub fn v2a<T, const N: usize>(v: Vec<T>) -> [T; N] {
-  v.try_into().unwrap_or_else(|v: Vec<T>|
-    panic!("Expected a Vec of length {} but it was {}", N, v.len()))
-}
-
-// std::any::type_name_of_val https://github.com/rust-lang/rust/issues/66359
-fn fake_type_name_of_val<T>(_: &T) -> &'static str {
-  std::any::type_name::<T>()
-}
-
-// id for from_id and chk_src_type (now inner use)
-// not pub
-enum ClsId {
-  World = 1, Space, Body, Geom, JointGroup
-}
-
-// #[macro_export]
-macro_rules! chk_src_type {
-  ($n: expr, $obj: ident, $src: expr) => {{
-    let o = fake_type_name_of_val(&$obj); // "*mut (self name)::oyk::ode::Xxx"
-    let t = fake_type_name_of_val(&$src);
-    let v = $src as usize;
-    let mut r = (None, v);
-    if &t[..5] == "*mut " { // dTypeID as "*mut (self name)::oyk::ode::dxType"
-      let p: Vec<_> = t.match_indices("::").collect(); // [(pos, "::"), ...]
-      if p.len() > 0 {
-        let s = &t[p[p.len() - 1].0+4..]; // skip 4 bytes "::dx"
-        // println!("{}", s);
-        r = (match s {
-          "World" => { Some(ClsId::World) },
-          "Space" => { Some(ClsId::Space) },
-          "Body" => { Some(ClsId::Body) },
-          "Geom" => { Some(ClsId::Geom) },
-          "JointGroup" => { Some(ClsId::JointGroup) },
-          _ => { println!("unknown pattern of {} {}, {}", $n, o, t); None }
-        }, v)
-      }
-    }
-    r
-  }};
-}
-// pub use chk_src_type;
-
-// #[macro_export]
-macro_rules! from_id {
-  (obg: $obj: ident, $src: expr) => {
-    let (k, v) = chk_src_type!("Obg", $obj, $src);
-    match k {
-      Some(ClsId::Body) => { $obj.body = v },
-      Some(ClsId::Geom) => { $obj.geom = v },
-      _ => {}
-    }
-  };
-  (gws: $obj: ident, $src: expr) => {
-    let (k, v) = chk_src_type!("Gws", $obj, $src);
-    match k {
-      Some(ClsId::World) => { $obj.world = v },
-      Some(ClsId::Space) => { $obj.space = v },
-      Some(ClsId::Geom) => { $obj.ground = v },
-      Some(ClsId::JointGroup) => { $obj.contactgroup = v },
-      _ => {}
-    }
-  };
-  ($obj: ident, $src: expr, $dst: ident) => { $obj.$dst = $src as usize };
-}
-// pub use from_id;
-
-// #[macro_export]
-macro_rules! as_id { // common Obg and Gws
-  ($obj: ident, body) => { $obj.body as dBodyID };
-  ($obj: ident, geom) => { $obj.geom as dGeomID };
-  ($obj: ident, world) => { $obj.world as dWorldID };
-  ($obj: ident, space) => { $obj.space as dSpaceID };
-  ($obj: ident, ground) => { $obj.ground as dGeomID };
-  ($obj: ident, contactgroup) => { $obj.contactgroup as dJointGroupID };
-  ($obj: ident, $src: ident, $dst: ty) => { $obj.$src as $dst };
-}
-// pub use as_id;
-
-/// for debug output status
-#[macro_export]
-macro_rules! ostat {
-  // ($($e:expr),+) => { print!($($e),*); };
-  ($($e:expr),+) => {};
-}
-pub use ostat;
-
-/// for debug output status with ln
-#[macro_export]
-macro_rules! ostatln {
-  // ($($e:expr),+) => { println!($($e),*); };
-  ($($e:expr),+) => {};
-}
-pub use ostatln;
-
-use std::ffi::{c_void};
 
 use once_cell::sync::Lazy;
 
 /// unsafe static mut OYK_MUT (management ODE singleton instance)
 pub static mut OYK_MUT: Lazy<Vec<ODE>> = Lazy::new(|| vec![ODE::new(0.002)]);
-
-/// unsafe static COLORS (reference to preset colors)
-pub static COLORS: Lazy<Vec<u32>> = Lazy::new(|| vec![
-  0xcccccccc, 0xcc9933cc, 0x33cc99cc, 0x9933cccc,
-  0x3399cccc, 0x99cc33cc, 0xcc3399cc, 0x999999cc,
-  0x666666cc, 0x996633cc, 0x339966cc, 0x663399cc,
-  0x336699cc, 0x669933cc, 0x993366cc, 0x333333cc]);
-
-/// u32 RGBA (little endian) to dVector4 color
-pub fn vec4_from_u32(col: u32) -> dVector4 {
-  let p: usize = &col as *const u32 as usize;
-  v2a((0..4).into_iter().map(|j|
-unsafe {
-    *((p + (3 - j)) as *const u8) as dReal / 255.0 // little endian
-}
-  ).collect())
-}
-
-impl dSurfaceParameters {
-
-/// binding construct dSurfaceParameters
-pub fn new() -> dSurfaceParameters {
-  dSurfaceParameters{
-    mode: 0, // c_int
-    mu: 0.0, // dReal
-    mu2: 0.0, // dReal
-    rho: 0.0, // dReal
-    rho2: 0.0, // dReal
-    rhoN: 0.0, // dReal
-    bounce: 0.0, // dReal
-    bounce_vel: 0.0, // dReal
-    soft_erp: 0.0, // dReal
-    soft_cfm: 0.0, // dReal
-    motion1: 0.0, // dReal
-    motion2: 0.0, // dReal
-    motionN: 0.0, // dReal
-    slip1: 0.0, // dReal
-    slip2: 0.0} // dReal
-}
-
-}
-
-impl dContactGeom {
-
-/// binding construct dContactGeom
-pub fn new() -> dContactGeom {
-  dContactGeom{
-    pos: [0.0; 4], // dVector3
-    normal: [0.0; 4], // dVector3
-    depth: 0.0, // dReal
-    g1: 0 as dGeomID,
-    g2: 0 as dGeomID,
-    side1: 0, // c_int
-    side2: 0} // c_int
-}
-
-}
-
-impl dContact {
-
-/// binding construct dContact
-pub fn new() -> dContact {
-  dContact{
-    surface: dSurfaceParameters::new(),
-    geom: dContactGeom::new(),
-    fdir1: [0.0; 4]} // dVector3
-}
-
-}
-
-impl dMass {
-
-/// binding construct dMass (as dMassSetZero)
-pub fn new() -> dMass {
-  let mut mass: dMass = dMass{
-    mass: 0.0,
-    c: [0.0; 4], // dVector3
-    I: [0.0; 12]}; // dMatrix3
-  unsafe { dMassSetZero(&mut mass); } // may be needless
-  mass
-}
-
-}
-
-/// object(s) of ODE, obgs: HashMap&lt;dBodyID, Obg&gt;
-pub struct Obg { // unsafe *mut xxx
-  body: usize, // dBodyID,
-  geom: usize, // dGeomID,
-  /// color
-  pub col: dVector4
-}
-
-/// body geom
-impl Obg {
-
-/// construct
-pub fn new(body: dBodyID, geom: dGeomID, col: &dVector4) -> Obg {
-  Obg{body: body as usize, geom: geom as usize, col: *col}
-}
-
-/// setter
-pub fn body_(&mut self, id: dBodyID) { from_id!(obg: self, id); }
-/// getter
-pub fn body(&self) -> dBodyID { as_id!(self, body) }
-/// setter
-pub fn geom_(&mut self, id: dGeomID) { from_id!(obg: self, id); }
-/// getter
-pub fn geom(&self) -> dGeomID { as_id!(self, geom) }
-
-/// pos dVector3 as *mut [dReal; 4]
-pub fn pos_ptr_mut(&mut self) -> *mut [dReal; 4] {
-unsafe {
-  let p: *mut dReal = dBodyGetPosition(self.body()) as *mut dReal;
-  p as *mut [dReal; 4]
-}
-}
-
-/// pos dVector3 as &mut [dReal] 4 usize
-pub fn pos_(&mut self) -> &mut [dReal] {
-unsafe {
-  std::slice::from_raw_parts_mut(self.pos_ptr_mut() as *mut dReal, 4)
-}
-}
-
-/// pos dVector3 as &[dReal] 4 usize
-pub fn pos(&self) -> &[dReal] {
-unsafe {
-  let p: *const dReal = dBodyGetPosition(self.body());
-  std::slice::from_raw_parts(p, 4)
-}
-}
-
-/// pos dVector3 as ODEMat
-pub fn pos_vec(&self) -> ODEMat {
-  ODEMat::as_vec(self.pos())
-}
-
-/// rot dMatrix3 as *mut [[dReal; 4]; 3]
-pub fn rot_ptr_mut(&mut self) -> *mut [[dReal; 4]; 3] {
-unsafe {
-  let p: *mut dReal = dBodyGetRotation(self.body()) as *mut dReal;
-  p as *mut [[dReal; 4]; 3]
-}
-}
-
-/// rot dMatrix3 as &mut [dReal] 12 usize
-pub fn rot_(&mut self) -> &mut [dReal] {
-unsafe {
-  std::slice::from_raw_parts_mut(self.rot_ptr_mut() as *mut dReal, 12)
-}
-}
-
-/// rot dMatrix3 as &[dReal] 12 usize
-pub fn rot(&self) -> &[dReal] {
-unsafe {
-  let p: *const dReal = dBodyGetRotation(self.body());
-  std::slice::from_raw_parts(p, 12)
-}
-}
-
-/// rot dMatrix3 as ODEMat
-pub fn rot_mat3(&self) -> ODEMat {
-  ODEMat::as_mat(3, self.rot())
-}
-
-}
-
-/// object of ODE, gws: singleton
-pub struct Gws { // unsafe *mut xxx
-  world: usize, // dWorldID,
-  space: usize, // dSpaceID,
-  ground: usize, // dGeomID,
-  contactgroup: usize // dJointGroupID
-}
-
-/// world space
-impl Gws {
-
-/// construct
-pub fn new() -> Gws {
-  Gws{world: 0, space: 0, ground: 0, contactgroup: 0}
-}
-
-/// setter
-pub fn world_(&mut self, id: dWorldID) { from_id!(gws: self, id); }
-/// getter
-pub fn world(&self) -> dWorldID { as_id!(self, world) }
-/// setter
-pub fn space_(&mut self, id: dSpaceID) { from_id!(gws: self, id); }
-/// getter
-pub fn space(&self) -> dSpaceID { as_id!(self, space) }
-/// setter
-pub fn ground_(&mut self, id: dGeomID) { from_id!(gws: self, id); }
-/// getter
-pub fn ground(&self) -> dGeomID { as_id!(self, ground) }
-/// setter
-pub fn contactgroup_(&mut self, id: dJointGroupID) { from_id!(gws: self, id); }
-/// getter
-pub fn contactgroup(&self) -> dJointGroupID { as_id!(self, contactgroup) }
-
-}
-
-// pub const ObgLen: usize = std::mem::size_of::<Obg>(); // 48
-// pub const GwsLen: usize = std::mem::size_of::<Gws>(); // 32
-
-/// viewpoint(s) of ODE, cams: Vec&lt;Cam&gt;
-pub struct Cam {
-  /// pos, look at [0, 0, 0]
-  pub pos: Vec<f32>,
-  /// yaw, pitch, roll
-  pub ypr: Vec<f32>
-}
-
-/// viewpoint
-impl Cam {
-
-/// construct example let cam: Cam = new(vec![0.0f32; 3], vec![0.0f32; 3]);
-pub fn new(p: Vec<f32>, y: Vec<f32>) -> Cam {
-  Cam{pos: p, ypr: y}
-}
-
-}
 
 /// ODE singleton
 pub struct ODE { // unsafe
@@ -612,11 +215,11 @@ pub fn open() {
 unsafe {
   // need this code (do nothing) to create instance
   let gws: &mut Gws = &mut ode_get_mut!(gws);
-  gws.world = 0; // force call new before create_world
+  gws.world_(0 as dWorldID); // force call new before create_world
 /*
   // need this code (do nothing) to create instance
   let v = &mut OYK_MUT;
-  v[0].gws.world = 0; // force call new before create_world
+  v[0].gws.world_(0 as dWorldID); // force call new before create_world
   drop(v);
 */
 }
@@ -996,3 +599,19 @@ fn c_stop_callback() {
   let rode: &mut ODE = &mut ode_mut!();
   ode_sim!(rode, stop_callback)
 }
+
+/// for debug output status
+#[macro_export]
+macro_rules! ostat {
+  // ($($e:expr),+) => { print!($($e),*); };
+  ($($e:expr),+) => {};
+}
+pub use ostat;
+
+/// for debug output status with ln
+#[macro_export]
+macro_rules! ostatln {
+  // ($($e:expr),+) => { println!($($e),*); };
+  ($($e:expr),+) => {};
+}
+pub use ostatln;
