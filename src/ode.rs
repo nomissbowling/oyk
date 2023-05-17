@@ -94,13 +94,12 @@ pub struct ODE { // unsafe
   polyfill_wireframe: i32, // 0: solid, 1: wireframe (for all)
   sw_viewpoint: usize, // switch viewpoint
   /// viewpoint(s)
-  pub cams: Vec<Cam>,
-  /// object(s) mapped
+  pub cams: BTreeMap<usize, Cam>,
+  /// object(s) mapped (obg has key: String)
   pub obgs: HashMap<dBodyID, Obg>,
-  /// object id(s) ordered mapped
+  /// object id(s) ordered mapped (key: String must be cloned)
   pub mbgs: BTreeMap<String, dBodyID>,
-  /// singleton
-  pub gws: Gws,
+  gws: Gws, // singleton
   /// step
   pub t_delta: dReal
 }
@@ -205,7 +204,8 @@ pub fn new(delta: dReal) -> ODE {
       Cam::new(vec![-8.3, -14.1, 3.1], vec![84.5, 1.0, 0.0]),
       Cam::new(vec![4.0, 3.0, 5.0], vec![-150.0, -30.0, 3.0]),
       Cam::new(vec![10.0, 10.0, 5.0], vec![-150.0, 0.0, 3.0]),
-      Cam::new(vec![5.0, 0.0, 1.0], vec![-180.0, 0.0, 0.0])],
+      Cam::new(vec![5.0, 0.0, 1.0], vec![-180.0, 0.0, 0.0])
+    ].into_iter().enumerate().collect(), // to BTreeMap<usize, Cam>
     obgs: vec![].into_iter().collect(), mbgs: vec![].into_iter().collect(),
     gws: Gws::new(), t_delta: delta}
 }
@@ -267,7 +267,7 @@ unsafe {
 }
 
 /// make sphere primitive object (register it to show on the ODE space world)
-pub fn mk_sphere(&mut self, k: String,
+pub fn mk_sphere(&mut self, key: String,
   m: dReal, r: dReal, col: &dVector4, pos: &dVector3) -> dBodyID {
   let mut mass: dMass = dMass::new();
 unsafe {
@@ -278,37 +278,50 @@ unsafe {
   let geom: dGeomID = dCreateSphere(gws.space(), r);
   dGeomSetBody(geom, body);
   dBodySetPosition(body, pos[0], pos[1], pos[2]);
-  let obg: Obg = Obg::new(body, geom, col);
-  self.reg(k, obg) // in unsafe {}, otherwise ambiguous Self body geom
+  let obg: Obg = Obg::new(key, body, geom, col);
+  self.reg(obg) // in unsafe {}, otherwise ambiguous Self body geom
 }
 }
 
 /// register object (to HashMap and BTreeMap)
-pub fn reg(&mut self, k: String, obg: Obg) -> dBodyID {
+pub fn reg(&mut self, obg: Obg) -> dBodyID {
   let id = obg.body();
   let obgs: &mut HashMap<dBodyID, Obg> = &mut self.obgs;
   obgs.insert(id, obg);
   let mbgs: &mut BTreeMap<String, dBodyID> = &mut self.mbgs;
-  mbgs.insert(k, id);
+  mbgs.insert(obgs[&id].key.clone(), id);
   id
 }
 
-/// search object (from BTreeMap and HashMap)
-pub fn find_mut(&mut self, k: String) -> Result<&mut Obg, Box<dyn Error>> {
-  let mbgs: &mut BTreeMap<String, dBodyID> = &mut self.mbgs;
+/// search id (from BTreeMap)
+pub fn find_id_by_key(&self, k: String) -> Result<dBodyID, Box<dyn Error>> {
+  let mbgs: &BTreeMap<String, dBodyID> = &self.mbgs;
+  // not use mbgs[&k]
+  Ok(*mbgs.get(&k).ok_or(ODEError::no_key(k))?)
+}
+
+/// search object mut (from HashMap)
+pub fn find_by_id_mut(&mut self, id: dBodyID) -> Result<&mut Obg, Box<dyn Error>> {
   let obgs: &mut HashMap<dBodyID, Obg> = &mut self.obgs;
-  // not use Some(&mut obgs[&mbgs[&k]])
-  let id: &dBodyID = mbgs.get(&k).ok_or(ODEError::no_key(k))?;
-  Ok(obgs.get_mut(id).ok_or(ODEError::no_id(*id))?)
+  Ok(obgs.get_mut(&id).ok_or(ODEError::no_id(id))?)
+}
+
+/// search object mut (from BTreeMap and HashMap)
+pub fn find_mut(&mut self, k: String) -> Result<&mut Obg, Box<dyn Error>> {
+  let id: dBodyID = self.find_id_by_key(k)?;
+  self.find_by_id_mut(id)
+}
+
+/// search object (from HashMap)
+pub fn find_by_id(&self, id: dBodyID) -> Result<&Obg, Box<dyn Error>> {
+  let obgs: &HashMap<dBodyID, Obg> = &self.obgs;
+  Ok(obgs.get(&id).ok_or(ODEError::no_id(id))?)
 }
 
 /// search object (from BTreeMap and HashMap)
 pub fn find(&self, k: String) -> Result<&Obg, Box<dyn Error>> {
-  let mbgs: &BTreeMap<String, dBodyID> = &self.mbgs;
-  let obgs: &HashMap<dBodyID, Obg> = &self.obgs;
-  // not use Some(&obgs[&mbgs[&k]])
-  let id: &dBodyID = mbgs.get(&k).ok_or(ODEError::no_key(k))?;
-  Ok(obgs.get(id).ok_or(ODEError::no_id(*id))?)
+  let id: dBodyID = self.find_id_by_key(k)?;
+  self.find_by_id(id)
 }
 
 /// destroy object (not unregister)
@@ -355,8 +368,8 @@ unsafe {
 pub fn viewpoint_() {
 unsafe {
   let sw_viewpoint: &usize = &ode_get!(sw_viewpoint);
-  let cams: &mut Vec<Cam> = &mut ode_get_mut!(cams);
-  let cam = &mut cams[*sw_viewpoint];
+  let cams: &mut BTreeMap<usize, Cam> = &mut ode_get_mut!(cams);
+  let cam = cams.get_mut(sw_viewpoint).unwrap(); // &mut cams[sw_viewpoint];
   let pos: &mut [f32] = &mut cam.pos;
   let ypr: &mut [f32] = &mut cam.ypr;
   dsSetViewpoint(pos as *mut [f32] as *mut f32, ypr as *mut [f32] as *mut f32);
@@ -373,8 +386,8 @@ unsafe {
   println!("viewpoint {} {:?}, {:?}", *sw_viewpoint, p, y);
   match f {
     true => {
-      let cams: &mut Vec<Cam> = &mut ode_get_mut!(cams);
-      let cam = &mut cams[*sw_viewpoint];
+      let cams: &mut BTreeMap<usize, Cam> = &mut ode_get_mut!(cams);
+      let cam = cams.get_mut(sw_viewpoint).unwrap(); // &mut cams[sw_viewpoint];
       cam.pos = p.to_vec();
       cam.ypr = y.to_vec();
     },

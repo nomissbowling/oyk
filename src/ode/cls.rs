@@ -5,8 +5,7 @@ use crate::ode::*;
 use crate::ode::mat::*;
 
 // std::any::type_name_of_val https://github.com/rust-lang/rust/issues/66359
-/// type name of val
-pub fn fake_type_name_of_val<T>(_: &T) -> &'static str {
+fn fake_type_name_of_val<T>(_: &T) -> &'static str {
   std::any::type_name::<T>()
 }
 
@@ -81,6 +80,8 @@ macro_rules! as_id { // common Obg and Gws
 
 /// object(s) of ODE, obgs: HashMap&lt;dBodyID, Obg&gt;
 pub struct Obg { // unsafe *mut xxx
+  /// key
+  pub key: String,
   body: usize, // dBodyID,
   geom: usize, // dGeomID,
   /// color
@@ -91,8 +92,8 @@ pub struct Obg { // unsafe *mut xxx
 impl Obg {
 
 /// construct
-pub fn new(body: dBodyID, geom: dGeomID, col: &dVector4) -> Obg {
-  Obg{body: body as usize, geom: geom as usize, col: *col}
+pub fn new(key: String, body: dBodyID, geom: dGeomID, col: &dVector4) -> Obg {
+  Obg{key: key, body: body as usize, geom: geom as usize, col: *col}
 }
 
 /// setter
@@ -200,7 +201,7 @@ pub fn contactgroup(&self) -> dJointGroupID { as_id!(self, contactgroup) }
 // pub const ObgLen: usize = std::mem::size_of::<Obg>(); // 48
 // pub const GwsLen: usize = std::mem::size_of::<Gws>(); // 32
 
-/// viewpoint(s) of ODE, cams: Vec&lt;Cam&gt;
+/// viewpoint(s) of ODE, cams: BTreeMap&lt;usize, Cam&gt;
 pub struct Cam {
   /// pos, look at [0, 0, 0]
   pub pos: Vec<f32>,
