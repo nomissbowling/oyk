@@ -95,10 +95,9 @@ pub struct ODE { // unsafe
   sw_viewpoint: usize, // switch viewpoint
   /// viewpoint(s)
   pub cams: BTreeMap<usize, Cam>,
-  /// object(s) mapped (obg has key: String)
-  pub obgs: HashMap<dBodyID, Obg>,
-  /// object id(s) ordered mapped (key: String must be cloned)
-  pub mbgs: BTreeMap<String, dBodyID>,
+  obgs: HashMap<dBodyID, Obg>, // object(s) mapped (obg has key: String)
+  mbgs: BTreeMap<String, dBodyID>, // object id(s) ordered mapped (key: cloned)
+  modified: bool, // modify() is_modified()
   gws: Gws, // singleton
   /// step
   pub t_delta: dReal
@@ -207,7 +206,7 @@ pub fn new(delta: dReal) -> ODE {
       Cam::new(vec![5.0, 0.0, 1.0], vec![-180.0, 0.0, 0.0])
     ].into_iter().enumerate().collect(), // to BTreeMap<usize, Cam>
     obgs: vec![].into_iter().collect(), mbgs: vec![].into_iter().collect(),
-    gws: Gws::new(), t_delta: delta}
+    modified: false, gws: Gws::new(), t_delta: delta}
 }
 
 /// ODE initialize
@@ -266,6 +265,23 @@ unsafe {
 }
 }
 
+/// modify
+pub fn modify(&mut self) {
+  self.modified = true;
+}
+
+/// is modified (set false when f is false, otherwise through)
+pub fn is_modified(&mut self, f: bool) -> bool {
+  let r = self.modified;
+  if r { self.modified = f; }
+  r
+}
+
+/// number of elements
+pub fn num(&self) -> usize {
+  self.obgs.len()
+}
+
 /// make sphere primitive object (register it to show on the ODE space world)
 pub fn mk_sphere(&mut self, key: String,
   m: dReal, r: dReal, col: &dVector4, pos: &dVector3) -> dBodyID {
@@ -290,38 +306,59 @@ pub fn reg(&mut self, obg: Obg) -> dBodyID {
   obgs.insert(id, obg);
   let mbgs: &mut BTreeMap<String, dBodyID> = &mut self.mbgs;
   mbgs.insert(obgs[&id].key.clone(), id);
+  self.modify();
   id
 }
 
 /// search id (from BTreeMap)
-pub fn find_id_by_key(&self, k: String) -> Result<dBodyID, Box<dyn Error>> {
+pub fn get_id(&self, k: String) -> Result<dBodyID, Box<dyn Error>> {
   let mbgs: &BTreeMap<String, dBodyID> = &self.mbgs;
   // not use mbgs[&k]
   Ok(*mbgs.get(&k).ok_or(ODEError::no_key(k))?)
 }
 
 /// search object mut (from HashMap)
-pub fn find_by_id_mut(&mut self, id: dBodyID) -> Result<&mut Obg, Box<dyn Error>> {
+pub fn get_mut(&mut self, id: dBodyID) -> Result<&mut Obg, Box<dyn Error>> {
   let obgs: &mut HashMap<dBodyID, Obg> = &mut self.obgs;
   Ok(obgs.get_mut(&id).ok_or(ODEError::no_id(id))?)
 }
 
 /// search object mut (from BTreeMap and HashMap)
 pub fn find_mut(&mut self, k: String) -> Result<&mut Obg, Box<dyn Error>> {
-  let id: dBodyID = self.find_id_by_key(k)?;
-  self.find_by_id_mut(id)
+  let id: dBodyID = self.get_id(k)?;
+  self.get_mut(id)
 }
 
 /// search object (from HashMap)
-pub fn find_by_id(&self, id: dBodyID) -> Result<&Obg, Box<dyn Error>> {
+pub fn get(&self, id: dBodyID) -> Result<&Obg, Box<dyn Error>> {
   let obgs: &HashMap<dBodyID, Obg> = &self.obgs;
   Ok(obgs.get(&id).ok_or(ODEError::no_id(id))?)
 }
 
 /// search object (from BTreeMap and HashMap)
 pub fn find(&self, k: String) -> Result<&Obg, Box<dyn Error>> {
-  let id: dBodyID = self.find_id_by_key(k)?;
-  self.find_by_id(id)
+  let id: dBodyID = self.get_id(k)?;
+  self.get(id)
+}
+
+/// each_id (may use immutable result with get_mut to avoid dup mutable borrow)
+pub fn each_id(&self, la: fn(key: &str, id: dBodyID) -> bool) -> Vec<dBodyID> {
+  let mut r: Vec<dBodyID> = vec![];
+  for (k, v) in &self.mbgs {
+    r.push(if la(k, *v) { *v } else { 0 as dBodyID });
+  }
+  r
+}
+
+/// each (can break by result of lambda)
+pub fn each(&self, la: fn(key: &str, id: dBodyID, obg: &Obg) -> bool) -> bool {
+  for (k, v) in &self.mbgs {
+    match self.get(*v) {
+      Err(e) => { println!("{}", e); }, // may not be arrived here
+      Ok(obg) => { if !la(k, *v, obg) { return false; } }
+    }
+  }
+  true
 }
 
 /// destroy object (not unregister)
