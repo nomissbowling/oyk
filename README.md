@@ -63,6 +63,8 @@ pub fn objs_mut(&mut self, f: bool, s: &str) {
       match rode.get_mut(id) {
         Err(e) => { println!("{}", e); },
         Ok(obg) => {
+          // This is test code using each_id with get_mut, but high cost.
+          // Better to use self.super_mut().find_mut("ball_big".to_string())
           if obg.key == "ball_big" { obg.col = [1.0, 0.0, 0.0, 0.8] }
           println!("{}: {:018p} {:?}", obg.key, id, obg.col);
         }

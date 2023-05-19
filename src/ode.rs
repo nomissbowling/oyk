@@ -72,7 +72,7 @@ use cls::*;
 
 use std::collections::HashMap; // with #[derive(PartialEq, Eq, Hash)] struct
 use std::collections::BTreeMap;
-// use std::collections::VecDeque;
+use std::collections::VecDeque;
 
 use asciiz::u8z::{U8zBuf, u8zz::{CArgsBuf}};
 
@@ -97,6 +97,7 @@ pub struct ODE { // unsafe
   pub cams: BTreeMap<usize, Cam>,
   obgs: HashMap<dBodyID, Obg>, // object(s) mapped (obg has key: String)
   mbgs: BTreeMap<String, dBodyID>, // object id(s) ordered mapped (key: cloned)
+  vbgs: VecDeque<dBodyID>, // object id(s) ordered (drawing order)
   modified: bool, // modify() is_modified()
   gws: Gws, // singleton
   /// step
@@ -206,6 +207,8 @@ pub fn new(delta: dReal) -> ODE {
       Cam::new(vec![5.0, 0.0, 1.0], vec![-180.0, 0.0, 0.0])
     ].into_iter().enumerate().collect(), // to BTreeMap<usize, Cam>
     obgs: vec![].into_iter().collect(), mbgs: vec![].into_iter().collect(),
+    vbgs: vec![].try_into().unwrap_or_else(|o: std::convert::Infallible|
+      panic!("Expected VecDeque<dBodyID> from vec![] Infallible ({:?})", o)),
     modified: false, gws: Gws::new(), t_delta: delta}
 }
 
@@ -303,9 +306,11 @@ unsafe {
 pub fn reg(&mut self, obg: Obg) -> dBodyID {
   let id = obg.body();
   let obgs: &mut HashMap<dBodyID, Obg> = &mut self.obgs;
-  obgs.insert(id, obg);
+  let e = obgs.entry(id).or_insert(obg); // expect id is never duplicated
   let mbgs: &mut BTreeMap<String, dBodyID> = &mut self.mbgs;
-  mbgs.insert(obgs[&id].key.clone(), id);
+  mbgs.insert(e.key.clone(), id);
+  let vbgs: &mut VecDeque<dBodyID> = &mut self.vbgs;
+  vbgs.push_back(id);
   self.modify();
   id
 }
@@ -389,6 +394,10 @@ unsafe {
   obgs.clear();
   let mbgs: &mut BTreeMap<String, dBodyID> = &mut ode_get_mut!(mbgs);
   mbgs.clear();
+  let vbgs: &mut VecDeque<dBodyID> = &mut ode_get_mut!(vbgs);
+  vbgs.clear();
+  let rode: &mut ODE = &mut ode_mut!();
+  rode.modify();
 }
 }
 
@@ -507,9 +516,11 @@ fn draw_objects(&mut self) {
   ostatln!("called default draw");
   let _wire_solid = &self.wire_solid; // for bunny
   let obgs = &self.obgs;
-  for (id, obg) in obgs {
-unsafe {
+  let vbgs = &self.vbgs;
+  for id in vbgs { // drawing order
+    let obg = &obgs[&id];
     let c: Vec<f32> = obg.col.into_iter().map(|v| v as f32).collect();
+unsafe {
     dsSetColorAlpha(c[0], c[1], c[2], c[3]);
     let geom: dGeomID = obg.geom();
     let body: dBodyID = dGeomGetBody(geom); // same as obg.body()
