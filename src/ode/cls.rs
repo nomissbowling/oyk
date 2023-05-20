@@ -84,7 +84,7 @@ pub struct Obg { // unsafe *mut xxx
   pub key: String,
   body: usize, // dBodyID,
   geom: usize, // dGeomID,
-  /// color
+  /// color (low priority obg.col &lt; tcm.col)
   pub col: dVector4
 }
 
@@ -92,8 +92,8 @@ pub struct Obg { // unsafe *mut xxx
 impl Obg {
 
 /// construct
-pub fn new(key: String, body: dBodyID, geom: dGeomID, col: &dVector4) -> Obg {
-  Obg{key: key, body: body as usize, geom: geom as usize, col: *col}
+pub fn new(key: String, body: dBodyID, geom: dGeomID, col: dVector4) -> Obg {
+  Obg{key: key, body: body as usize, geom: geom as usize, col: col}
 }
 
 /// setter
@@ -198,8 +198,25 @@ pub fn contactgroup(&self) -> dJointGroupID { as_id!(self, contactgroup) }
 
 }
 
-// pub const ObgLen: usize = std::mem::size_of::<Obg>(); // 48
 // pub const GwsLen: usize = std::mem::size_of::<Gws>(); // 32
+
+/// material(s) of ODE, tcms: HashMap&lt;dGeomID, TCMaterial&gt;
+pub struct TCMaterial {
+  /// texture id
+  pub tex: i32,
+  /// color (high priority tcm.col &gt; obg.col)
+  pub col: dVector4
+}
+
+/// materials
+impl TCMaterial {
+
+/// construct example let tcm = TCMaterial::new(0, [1.0, 0.0, 0.0, 0.8]);
+pub fn new(t: i32, c: dVector4) -> TCMaterial {
+  TCMaterial{tex: t, col: c}
+}
+
+}
 
 /// viewpoint(s) of ODE, cams: BTreeMap&lt;usize, Cam&gt;
 pub struct Cam {
@@ -212,7 +229,7 @@ pub struct Cam {
 /// viewpoint
 impl Cam {
 
-/// construct example let cam: Cam = new(vec![0.0f32; 3], vec![0.0f32; 3]);
+/// construct example let cam = Cam::new(vec![0.0f32; 3], vec![0.0f32; 3]);
 pub fn new(p: Vec<f32>, y: Vec<f32>) -> Cam {
   Cam{pos: p, ypr: y}
 }

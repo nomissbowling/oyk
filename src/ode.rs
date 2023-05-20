@@ -95,6 +95,7 @@ pub struct ODE { // unsafe
   sw_viewpoint: usize, // switch viewpoint
   /// viewpoint(s)
   pub cams: BTreeMap<usize, Cam>,
+  tcms: HashMap<dGeomID, TCMaterial>, // material(s) mapped
   obgs: HashMap<dBodyID, Obg>, // object(s) mapped (obg has key: String)
   mbgs: BTreeMap<String, dBodyID>, // object id(s) ordered mapped (key: cloned)
   vbgs: VecDeque<dBodyID>, // object id(s) ordered (drawing order)
@@ -206,6 +207,7 @@ pub fn new(delta: dReal) -> ODE {
       Cam::new(vec![10.0, 10.0, 5.0], vec![-150.0, 0.0, 3.0]),
       Cam::new(vec![5.0, 0.0, 1.0], vec![-180.0, 0.0, 0.0])
     ].into_iter().enumerate().collect(), // to BTreeMap<usize, Cam>
+    tcms: vec![].into_iter().collect(),
     obgs: vec![].into_iter().collect(), mbgs: vec![].into_iter().collect(),
     vbgs: vec![].try_into().unwrap_or_else(|o: std::convert::Infallible|
       panic!("Expected VecDeque<dBodyID> from vec![] Infallible ({:?})", o)),
@@ -287,7 +289,7 @@ pub fn num(&self) -> usize {
 
 /// make sphere primitive object (register it to show on the ODE space world)
 pub fn mk_sphere(&mut self, key: String,
-  m: dReal, r: dReal, col: &dVector4, pos: &dVector3) -> dBodyID {
+  m: dReal, r: dReal, col: dVector4, pos: &dVector3) -> dBodyID {
   let mut mass: dMass = dMass::new();
 unsafe {
   let gws: &mut Gws = &mut self.gws;
@@ -297,6 +299,7 @@ unsafe {
   let geom: dGeomID = dCreateSphere(gws.space(), r);
   dGeomSetBody(geom, body);
   dBodySetPosition(body, pos[0], pos[1], pos[2]);
+  self.tcms.entry(geom).or_insert_with(|| TCMaterial::new(0, col));
   let obg: Obg = Obg::new(key, body, geom, col);
   self.reg(obg) // in unsafe {}, otherwise ambiguous Self body geom
 }
@@ -313,6 +316,19 @@ pub fn reg(&mut self, obg: Obg) -> dBodyID {
   vbgs.push_back(id);
   self.modify();
   id
+}
+
+/// search material mut (from HashMap)
+pub fn get_tcm_mut(&mut self, id: dGeomID) ->
+  Result<&mut TCMaterial, Box<dyn Error>> {
+  let tcms: &mut HashMap<dGeomID, TCMaterial> = &mut self.tcms;
+  Ok(tcms.get_mut(&id).ok_or(ODEError::no_tcm_id(id))?)
+}
+
+/// search material (from HashMap)
+pub fn get_tcm(&self, id: dGeomID) -> Result<&TCMaterial, Box<dyn Error>> {
+  let tcms: &HashMap<dGeomID, TCMaterial> = &self.tcms;
+  Ok(tcms.get(&id).ok_or(ODEError::no_tcm_id(id))?)
 }
 
 /// search id (from BTreeMap)
@@ -396,6 +412,8 @@ unsafe {
   mbgs.clear();
   let vbgs: &mut VecDeque<dBodyID> = &mut ode_get_mut!(vbgs);
   vbgs.clear();
+  let tcms: &mut HashMap<dGeomID, TCMaterial> = &mut ode_get_mut!(tcms);
+  tcms.clear();
   let rode: &mut ODE = &mut ode_mut!();
   rode.modify();
 }
@@ -493,6 +511,9 @@ unsafe {
 }
   }
 
+  /// draw_geom function
+  fn draw_geom(&self, geom: dGeomID,
+    pos: Option<*const dReal>, rot: Option<*const dReal>, ws: i32);
   /// draw default function
   fn draw_objects(&mut self);
   /// start default callback function
@@ -510,32 +531,53 @@ unsafe {
 /// trait Sim must have callback functions
 impl Sim for ODE {
 
-/// future implements drawing composite in this function
-/// wire_solid false/true for bunny
+/// implements drawing composite
+/// wire_solid i32 false/true for bunny
 fn draw_objects(&mut self) {
   ostatln!("called default draw");
-  let _wire_solid = &self.wire_solid; // for bunny
+  let wire_solid = self.wire_solid; // for bunny
   let obgs = &self.obgs;
   let vbgs = &self.vbgs;
   for id in vbgs { // drawing order
     let obg = &obgs[&id];
-    let c: Vec<f32> = obg.col.into_iter().map(|v| v as f32).collect();
 unsafe {
-    dsSetColorAlpha(c[0], c[1], c[2], c[3]);
-    let geom: dGeomID = obg.geom();
-    let body: dBodyID = dGeomGetBody(geom); // same as obg.body()
-    let cls = dGeomGetClass(geom);
-    match cls {
-      dSphereClass => {
-        let pos: *const dReal = dBodyGetPosition(body);
-        let rot: *const dReal = dBodyGetRotation(body);
-        let radius: dReal = dGeomSphereGetRadius(geom);
-        dsDrawSphereD(pos, rot, radius as f32);
-      },
-      _ => { println!("unknown class: {}", cls); }
+    let mut g = dBodyGetFirstGeom(obg.body());
+    while g != 0 as dGeomID {
+      self.draw_geom(g, None, None, wire_solid);
+      g = dBodyGetNextGeom(g);
     }
 }
   }
+}
+
+/// draw_geom (called by draw_objects and recursive)
+fn draw_geom(&self, geom: dGeomID,
+  pos: Option<*const dReal>, rot: Option<*const dReal>, ws: i32) {
+  if geom == 0 as dGeomID { return; }
+unsafe {
+  let pos: *const dReal = pos.unwrap_or_else(|| dGeomGetPosition(geom));
+  let rot: *const dReal = rot.unwrap_or_else(|| dGeomGetRotation(geom));
+  let col: &dVector4 = match self.get_tcm(geom) {
+    Err(e) => {
+      let obg = self.get(dGeomGetBody(geom)).unwrap(); // must care ok_or
+      &obg.col
+    },
+    Ok(tcm) => {
+      dsSetTexture(tcm.tex);
+      &tcm.col
+    }
+  };
+  let c: Vec<f32> = col.into_iter().map(|v| *v as f32).collect();
+  dsSetColorAlpha(c[0], c[1], c[2], c[3]);
+  let cls = dGeomGetClass(geom);
+  match cls {
+    dSphereClass => {
+      let radius: dReal = dGeomSphereGetRadius(geom);
+      dsDrawSphereD(pos, rot, radius as f32);
+    },
+    _ => { println!("unknown class: {}", cls); }
+  }
+}
 }
 
 /// start default callback function

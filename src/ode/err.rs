@@ -23,6 +23,11 @@ impl ODEError {
   pub fn no_id(id: dBodyID) -> ODEError {
     ODEError{msg: format!("no id {:018p} in obgs", id)}
   }
+
+  /// construct
+  pub fn no_tcm_id(id: dGeomID) -> ODEError {
+    ODEError{msg: format!("no tcm id {:018p} in tcms", id)}
+  }
 }
 
 /// formatter
