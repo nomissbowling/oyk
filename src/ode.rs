@@ -51,6 +51,7 @@ mod cppode;
 use cppode::*;
 pub use cppode::{dBodyID, dGeomID};
 pub use cppode::{dMatrix4, dMatrix3, dVector4, dVector3, dReal}; // 16 12 4 4
+pub use cppode::{dQuaternion};
 
 #[warn(unused)]
 // #[warn(unused_imports)]
@@ -69,6 +70,7 @@ use mat::*;
 
 pub mod cls;
 use cls::*;
+pub use cls::{Matrix4, Matrix3, Quaternion};
 
 use std::collections::HashMap; // with #[derive(PartialEq, Eq, Hash)] struct
 use std::collections::BTreeMap;
@@ -287,9 +289,20 @@ pub fn num(&self) -> usize {
   self.obgs.len()
 }
 
+/// set color, TCMaterial and reg
+pub fn set_material_and_reg(&mut self, key: String,
+  body: dBodyID, geom: dGeomID, col: dVector4) -> dBodyID {
+unsafe {
+  dGeomSetBody(geom, body);
+}
+  self.tcms.entry(geom).or_insert_with(|| TCMaterial::new(0, col));
+  let obg: Obg = Obg::new(key, body, geom, col);
+  self.reg(obg)
+}
+
 /// make sphere primitive object (register it to show on the ODE space world)
 pub fn mk_sphere(&mut self, key: String,
-  m: dReal, r: dReal, col: dVector4, pos: &dVector3) -> dBodyID {
+  m: dReal, r: dReal, col: dVector4) -> dBodyID {
   let mut mass: dMass = dMass::new();
 unsafe {
   let gws: &mut Gws = &mut self.gws;
@@ -297,11 +310,21 @@ unsafe {
   let body: dBodyID = dBodyCreate(gws.world());
   dBodySetMass(body, &mass);
   let geom: dGeomID = dCreateSphere(gws.space(), r);
-  dGeomSetBody(geom, body);
-  dBodySetPosition(body, pos[0], pos[1], pos[2]);
-  self.tcms.entry(geom).or_insert_with(|| TCMaterial::new(0, col));
-  let obg: Obg = Obg::new(key, body, geom, col);
-  self.reg(obg) // in unsafe {}, otherwise ambiguous Self body geom
+  self.set_material_and_reg(key, body, geom, col)
+}
+}
+
+/// make plane primitive object
+pub fn mk_plane(&mut self, key: String,
+  dm: dReal, lxyz: &dVector3, n: &dVector4, col: dVector4) -> dBodyID {
+  let mut mass: dMass = dMass::new();
+unsafe {
+  let gws: &mut Gws = &mut self.gws;
+  dMassSetBox(&mut mass, dm, lxyz[0], lxyz[1], lxyz[2]);
+  let body: dBodyID = dBodyCreate(gws.world());
+  dBodySetMass(body, &mass);
+  let geom: dGeomID = dCreatePlane(gws.space(), n[0], n[1], n[2], n[3]);
+  self.set_material_and_reg(key, body, geom, col)
 }
 }
 
@@ -574,6 +597,13 @@ unsafe {
     dSphereClass => {
       let radius: dReal = dGeomSphereGetRadius(geom);
       dsDrawSphereD(pos, rot, radius as f32);
+    },
+    dPlaneClass => {
+      let mut v: dVector4 = [0.0; 4];
+      dGeomPlaneGetParams(geom, &mut v[0] as *mut dReal);
+      // (a Plane is not a Box) dGeomBoxGetLengths
+      let lxyz: dVector3 = [10.0, 10.0, 0.05, 0.0]; // ***
+      dsDrawBoxD(pos, rot, &lxyz[0] as *const dReal);
     },
     _ => { println!("unknown class: {}", cls); }
   }

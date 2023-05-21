@@ -161,6 +161,30 @@ pub fn rot_mat3(&self) -> ODEMat {
   ODEMat::as_mat(3, self.rot())
 }
 
+/// set position
+pub fn set_pos(&mut self, pos: dVector3) -> &mut Obg {
+unsafe {
+  dBodySetPosition(self.body(), pos[0], pos[1], pos[2]);
+}
+  self
+}
+
+/// set rotation
+pub fn set_rot(&mut self, rot: dMatrix3) -> &mut Obg {
+unsafe {
+  dBodySetRotation(self.body(), &rot[0] as *const dReal as *mut dReal);
+}
+  self
+}
+
+/// set quaternion
+pub fn set_quaternion(&mut self, q: dQuaternion) -> &mut Obg {
+unsafe {
+  dBodySetQuaternion(self.body(), &q[0] as *const dReal as *mut dReal);
+}
+  self
+}
+
 }
 
 /// object of ODE, gws: singleton
@@ -287,6 +311,119 @@ pub fn new() -> dContact {
 }
 
 }
+
+/// constructor and converter for primitive type
+pub trait Quaternion {
+  /// construct as Identity
+  fn new() -> dQuaternion {
+    let mut q: dQuaternion = [0.0; 4];
+unsafe {
+    dQSetIdentity(&mut q[0] as *mut dReal);
+}
+    q
+  }
+
+  /// converter
+  fn from_R(m: dMatrix3) -> dQuaternion {
+    let mut q: dQuaternion = [0.0; 4];
+unsafe {
+    dQfromR(&mut q[0] as *mut dReal, &m[0] as *const dReal as *mut dReal);
+}
+    q
+  }
+
+  /// converter
+  fn to_R(q: dQuaternion) -> dMatrix3 {
+    dMatrix3::from_Q(q)
+  }
+
+  /// constructor
+  fn from_axis_and_angle(axis: [dReal; 3], angle: dReal) -> dQuaternion {
+    let mut q: dQuaternion = [0.0; 4];
+unsafe {
+    dQFromAxisAndAngle(&mut q[0] as *mut dReal,
+      axis[0], axis[1], axis[2], angle);
+}
+    q
+  }
+}
+impl Quaternion for dQuaternion {}
+
+/// constructor and converter for primitive type
+pub trait Matrix3 {
+  /// construct as Identity
+  fn new() -> dMatrix3 {
+    let mut m: dMatrix3 = [0.0; 12];
+unsafe {
+    dRSetIdentity(&mut m[0] as *mut dReal);
+}
+    m
+  }
+
+  /// converter
+  fn from_Q(q: dQuaternion) -> dMatrix3 {
+    let mut m: dMatrix3 = [0.0; 12];
+unsafe {
+    dRfromQ(&mut m[0] as *mut dReal, &q[0] as *const dReal as *mut dReal);
+}
+    m
+  }
+
+  /// converter
+  fn to_Q(m: dMatrix3) -> dQuaternion {
+    dQuaternion::from_R(m)
+  }
+
+  /// constructor
+  fn from_axis_and_angle(axis: [dReal; 3], angle: dReal) -> dMatrix3 {
+    let mut m: dMatrix3 = [0.0; 12];
+unsafe {
+    dRFromAxisAndAngle(&mut m[0] as *mut dReal,
+      axis[0], axis[1], axis[2], angle);
+}
+    m
+  }
+
+  /// constructor
+  fn from_euler_angles(phi: dReal, theta: dReal, psi: dReal) -> dMatrix3 {
+    let mut m: dMatrix3 = [0.0; 12];
+unsafe {
+    dRFromEulerAngles(&mut m[0] as *mut dReal, phi, theta, psi);
+}
+    m
+  }
+
+  /// constructor
+  fn from_2_axes(e0: [dReal; 3], e1: [dReal; 3]) -> dMatrix3 {
+    let mut m: dMatrix3 = [0.0; 12];
+unsafe {
+    dRFrom2Axes(&mut m[0] as *mut dReal,
+      e0[0], e0[1], e0[2], e1[0], e1[1], e1[2]);
+}
+    m
+  }
+
+  /// constructor
+  fn from_z_axis(e: [dReal; 3]) -> dMatrix3 {
+    let mut m: dMatrix3 = [0.0; 12];
+unsafe {
+    dRFromZAxis(&mut m[0] as *mut dReal, e[0], e[1], e[2]);
+}
+    m
+  }
+}
+impl Matrix3 for dMatrix3 {}
+
+/// constructor and converter for primitive type
+pub trait Matrix4 {
+  /// construct as Identity
+  fn new() -> dMatrix4 {
+    let mut m: dMatrix4 = [0.0; 16];
+    for i in 0..4 { m[i * 5] = 1.0; }
+    m
+  }
+}
+impl Matrix4 for dMatrix4 {}
 
 impl dMass {
 
