@@ -72,7 +72,9 @@ pub mod cls;
 use cls::*;
 pub use cls::{Matrix4, Matrix3, Quaternion};
 
+use std::collections::hash_map::Entry;
 use std::collections::HashMap; // with #[derive(PartialEq, Eq, Hash)] struct
+use std::collections::btree_map::Entry as BTreeEntry;
 use std::collections::BTreeMap;
 use std::collections::VecDeque;
 
@@ -295,7 +297,15 @@ pub fn set_material_and_reg(&mut self, key: String,
 unsafe {
   dGeomSetBody(geom, body);
 }
-  self.tcms.entry(geom).or_insert_with(|| TCMaterial::new(0, col));
+  // self.tcms.entry(geom).or_insert_with(|| TCMaterial::new(0, col));
+  match self.tcms.entry(geom) { // expect geom is never duplicated
+    Entry::Occupied(mut oe) => {
+      let e = oe.get_mut();
+      println!("tcms {:?} already exists. skipped", geom); // just in case
+      e
+    },
+    Entry::Vacant(ve) => { ve.insert(TCMaterial::new(0, col)) }
+  };
   let obg: Obg = Obg::new(key, body, geom, col);
   self.reg(obg)
 }
@@ -332,9 +342,26 @@ unsafe {
 pub fn reg(&mut self, obg: Obg) -> dBodyID {
   let id = obg.body();
   let obgs: &mut HashMap<dBodyID, Obg> = &mut self.obgs;
-  let e = obgs.entry(id).or_insert(obg); // expect id is never duplicated
+  // let key = obgs.entry(id).or_insert(obg).key.clone();
+  let key = match obgs.entry(id) { // expect id is never duplicated
+    Entry::Occupied(oe) => {
+      let k = oe.get().key.clone();
+      println!("obgs {:?}[{}] already exists. skipped", id, k); // just in case
+      k
+    },
+    Entry::Vacant(ve) => { ve.insert(obg).key.clone() }
+  };
   let mbgs: &mut BTreeMap<String, dBodyID> = &mut self.mbgs;
-  mbgs.insert(e.key.clone(), id);
+  // mbgs.insert(key, id);
+  match mbgs.entry(key.clone()) { // expect key is never duplicated
+    BTreeEntry::Occupied(mut oe) => {
+      let mut e = oe.get_mut();
+      println!("mbgs [{}] already exists. replaced", key); // warning
+      *e = id;
+      e
+    },
+    BTreeEntry::Vacant(ve) => { ve.insert(id) }
+  };
   let vbgs: &mut VecDeque<dBodyID> = &mut self.vbgs;
   vbgs.push_back(id);
   self.modify();
