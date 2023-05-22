@@ -314,6 +314,9 @@ pub fn new() -> dContact {
 
 /// constructor and converter for primitive type
 pub trait Quaternion {
+  /// ptr of dQuaternion (use for converter)
+  fn as_ptr(&self) -> *const dReal;
+
   /// construct as Identity
   fn new() -> dQuaternion {
     let mut q: dQuaternion = [0.0; 4];
@@ -323,7 +326,7 @@ unsafe {
     q
   }
 
-  /// converter
+  /// constructor (converter)
   fn from_R(m: dMatrix3) -> dQuaternion {
     let mut q: dQuaternion = [0.0; 4];
 unsafe {
@@ -332,9 +335,13 @@ unsafe {
     q
   }
 
-  /// converter
-  fn to_R(q: dQuaternion) -> dMatrix3 {
-    dMatrix3::from_Q(q)
+  /// converter (like as dMatrix3::from_Q(*self))
+  fn to_R(&self) -> dMatrix3 {
+    let mut m: dMatrix3 = [0.0; 12];
+unsafe {
+    dRfromQ(&mut m[0] as *mut dReal, self.as_ptr() as *mut dReal);
+}
+    m
   }
 
   /// constructor
@@ -347,10 +354,17 @@ unsafe {
     q
   }
 }
-impl Quaternion for dQuaternion {}
+
+impl Quaternion for dQuaternion {
+  /// ptr of dQuaternion (use for converter)
+  fn as_ptr(&self) -> *const dReal { &(*self)[0] as *const dReal }
+}
 
 /// constructor and converter for primitive type
 pub trait Matrix3 {
+  /// ptr of dMatrix3 (use for converter)
+  fn as_ptr(&self) -> *const dReal;
+
   /// construct as Identity
   fn new() -> dMatrix3 {
     let mut m: dMatrix3 = [0.0; 12];
@@ -360,7 +374,7 @@ unsafe {
     m
   }
 
-  /// converter
+  /// constructor (converter)
   fn from_Q(q: dQuaternion) -> dMatrix3 {
     let mut m: dMatrix3 = [0.0; 12];
 unsafe {
@@ -369,9 +383,13 @@ unsafe {
     m
   }
 
-  /// converter
-  fn to_Q(m: dMatrix3) -> dQuaternion {
-    dQuaternion::from_R(m)
+  /// converter (like as dQuaternion::from_R(*self))
+  fn to_Q(&self) -> dQuaternion {
+    let mut q: dQuaternion = [0.0; 4];
+unsafe {
+    dQfromR(&mut q[0] as *mut dReal, self.as_ptr() as *mut dReal);
+}
+    q
   }
 
   /// constructor
@@ -412,7 +430,11 @@ unsafe {
     m
   }
 }
-impl Matrix3 for dMatrix3 {}
+
+impl Matrix3 for dMatrix3 {
+  /// ptr of dMatrix3 (use for converter)
+  fn as_ptr(&self) -> *const dReal { &(*self)[0] as *const dReal }
+}
 
 /// constructor and converter for primitive type
 pub trait Matrix4 {
@@ -423,6 +445,7 @@ pub trait Matrix4 {
     m
   }
 }
+
 impl Matrix4 for dMatrix4 {}
 
 impl dMass {
