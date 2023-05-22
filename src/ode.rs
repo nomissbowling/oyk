@@ -74,7 +74,8 @@ pub use prim::{Matrix4, Matrix3, Quaternion};
 
 pub mod meta;
 use meta::*;
-pub use meta::{MetaInf, MetaSphere, MetaBox, MetaPlane};
+pub use meta::{MetaInf};
+pub use meta::{MetaSphere, MetaBox, MetaCapsule, MetaCylinder, MetaPlane};
 
 pub mod cls;
 use cls::*;
@@ -216,7 +217,7 @@ pub fn new(delta: dReal) -> ODE {
       Cam::new(vec![-8.3, -14.1, 3.1], vec![84.5, 1.0, 0.0]),
       Cam::new(vec![4.0, 3.0, 5.0], vec![-150.0, -30.0, 3.0]),
       Cam::new(vec![10.0, 10.0, 5.0], vec![-150.0, 0.0, 3.0]),
-      Cam::new(vec![5.0, 0.0, 1.0], vec![-180.0, 0.0, 0.0])
+      Cam::new(vec![-20.0, -20.0, 10.0], vec![45.0, -15.0, 0.0])
     ].into_iter().enumerate().collect(), // to BTreeMap<usize, Cam>
     tcms: vec![].into_iter().collect(),
     obgs: vec![].into_iter().collect(), mbgs: vec![].into_iter().collect(),
@@ -342,6 +343,34 @@ unsafe {
   dBodySetMass(body, &mass);
   let geom: dGeomID = dCreateBox(gws.space(),
     mb.lxyz[0], mb.lxyz[1], mb.lxyz[2]);
+  self.set_material_and_reg(key, body, geom, mi)
+}
+}
+
+/// make plane primitive object
+pub fn mk_capsule(&mut self, key: String, mi: Box<dyn MetaInf>) -> dBodyID {
+  let mc = mi.as_capsule();
+  let mut mass: dMass = dMass::new();
+unsafe {
+  let gws: &mut Gws = &mut self.gws;
+  dMassSetCapsule(&mut mass, mc.dm, 3, mc.r, mc.l);
+  let body: dBodyID = dBodyCreate(gws.world());
+  dBodySetMass(body, &mass);
+  let geom: dGeomID = dCreateCapsule(gws.space(), mc.r, mc.l);
+  self.set_material_and_reg(key, body, geom, mi)
+}
+}
+
+/// make plane primitive object
+pub fn mk_cylinder(&mut self, key: String, mi: Box<dyn MetaInf>) -> dBodyID {
+  let mc = mi.as_cylinder();
+  let mut mass: dMass = dMass::new();
+unsafe {
+  let gws: &mut Gws = &mut self.gws;
+  dMassSetCylinder(&mut mass, mc.dm, 3, mc.r, mc.l);
+  let body: dBodyID = dBodyCreate(gws.world());
+  dBodySetMass(body, &mass);
+  let geom: dGeomID = dCreateCylinder(gws.space(), mc.r, mc.l);
   self.set_material_and_reg(key, body, geom, mi)
 }
 }
@@ -652,6 +681,18 @@ unsafe {
       let mut lxyz: dVector3 = [0.0; 4];
       dGeomBoxGetLengths(geom, &mut lxyz[0] as *mut dReal);
       dsDrawBoxD(pos, rot, &lxyz[0] as *const dReal);
+    },
+    dCapsuleClass => {
+      let mut r: dReal = 0.0;
+      let mut l: dReal = 0.0;
+      dGeomCapsuleGetParams(geom, &mut r as *mut dReal, &mut l as *mut dReal);
+      dsDrawCapsuleD(pos, rot, l as f32, r as f32);
+    },
+    dCylinderClass => {
+      let mut r: dReal = 0.0;
+      let mut l: dReal = 0.0;
+      dGeomCylinderGetParams(geom, &mut r as *mut dReal, &mut l as *mut dReal);
+      dsDrawCylinderD(pos, rot, l as f32, r as f32);
     },
     dPlaneClass => {
       let mut norm: dVector4 = [0.0; 4];

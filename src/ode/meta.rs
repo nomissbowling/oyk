@@ -45,6 +45,10 @@ pub trait MetaInf {
   fn as_sphere(&self) -> &MetaSphere { meta_panic!(self, "Sphere"); }
   /// as MetaBox
   fn as_box(&self) -> &MetaBox { meta_panic!(self, "Box"); }
+  /// as MetaCapsule
+  fn as_capsule(&self) -> &MetaCapsule { meta_panic!(self, "Capsule"); }
+  /// as MetaCylinder
+  fn as_cylinder(&self) -> &MetaCylinder { meta_panic!(self, "Cylinder"); }
   /// as MetaPlane
   fn as_plane(&self) -> &MetaPlane { meta_panic!(self, "Plane"); }
 }
@@ -106,6 +110,70 @@ impl MetaInf for MetaBox {
   fn get_tcm(&self) -> &TCMaterial { &self.tcm }
   /// as MetaBox
   fn as_box(&self) -> &MetaBox { self }
+}
+
+/// MetaCapsule
+pub struct MetaCapsule {
+  /// dens mass
+  pub dm: dReal,
+  /// radius
+  pub r: dReal,
+  /// length
+  pub l: dReal,
+  /// bounce
+  pub bounce: dReal,
+  /// material
+  pub tcm: TCMaterial
+}
+
+impl MetaCapsule {
+  /// construct
+  pub fn new(dm: dReal, r: dReal, l: dReal,
+    bounce: dReal, tex: i32, col: dVector4) -> MetaCapsule {
+    MetaCapsule{dm: dm, r: r, l: l,
+      bounce: bounce, tcm: TCMaterial::new(tex, col)}
+  }
+}
+
+impl MetaInf for MetaCapsule {
+  /// MetaID
+  fn id(&self) -> MetaId { MetaId::Capsule }
+  /// every struct has tcm
+  fn get_tcm(&self) -> &TCMaterial { &self.tcm }
+  /// as MetaCapsule
+  fn as_capsule(&self) -> &MetaCapsule { self }
+}
+
+/// MetaCylinder
+pub struct MetaCylinder {
+  /// dens mass
+  pub dm: dReal,
+  /// radius
+  pub r: dReal,
+  /// length
+  pub l: dReal,
+  /// bounce
+  pub bounce: dReal,
+  /// material
+  pub tcm: TCMaterial
+}
+
+impl MetaCylinder {
+  /// construct
+  pub fn new(dm: dReal, r: dReal, l: dReal,
+    bounce: dReal, tex: i32, col: dVector4) -> MetaCylinder {
+    MetaCylinder{dm: dm, r: r, l: l,
+      bounce: bounce, tcm: TCMaterial::new(tex, col)}
+  }
+}
+
+impl MetaInf for MetaCylinder {
+  /// MetaID
+  fn id(&self) -> MetaId { MetaId::Cylinder }
+  /// every struct has tcm
+  fn get_tcm(&self) -> &TCMaterial { &self.tcm }
+  /// as MetaCylinder
+  fn as_cylinder(&self) -> &MetaCylinder { self }
 }
 
 /// MetaPlane
