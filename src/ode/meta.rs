@@ -29,6 +29,12 @@ pub enum MetaId {
   Heightfield
 }
 
+// #[macro_export]
+macro_rules! meta_panic {
+  ($s: ident, $e: expr) => { panic!("Expected {} but {:?}", $e, $s.id()); };
+}
+// pub use meta_panic;
+
 /// MetaInf
 pub trait MetaInf {
   /// MetaID
@@ -36,9 +42,11 @@ pub trait MetaInf {
   /// every struct has tcm
   fn get_tcm(&self) -> &TCMaterial;
   /// as MetaSphere
-  fn as_sphere(&self) -> Option<&MetaSphere> { None }
+  fn as_sphere(&self) -> &MetaSphere { meta_panic!(self, "Sphere"); }
+  /// as MetaBox
+  fn as_box(&self) -> &MetaBox { meta_panic!(self, "Box"); }
   /// as MetaPlane
-  fn as_plane(&self) -> Option<&MetaPlane> { None }
+  fn as_plane(&self) -> &MetaPlane { meta_panic!(self, "Plane"); }
 }
 
 /// MetaSphere
@@ -47,14 +55,17 @@ pub struct MetaSphere {
   pub m: dReal,
   /// radius
   pub r: dReal,
+  /// bounce
+  pub bounce: dReal,
   /// material
   pub tcm: TCMaterial
 }
 
 impl MetaSphere {
   /// construct
-  pub fn new(m: dReal, r: dReal, tex: i32, col: dVector4) -> MetaSphere {
-    MetaSphere{m: m, r: r, tcm: TCMaterial::new(tex, col)}
+  pub fn new(m: dReal, r: dReal,
+    bounce: dReal, tex: i32, col: dVector4) -> MetaSphere {
+    MetaSphere{m: m, r: r, bounce: bounce, tcm: TCMaterial::new(tex, col)}
   }
 }
 
@@ -64,7 +75,37 @@ impl MetaInf for MetaSphere {
   /// every struct has tcm
   fn get_tcm(&self) -> &TCMaterial { &self.tcm }
   /// as MetaSphere
-  fn as_sphere(&self) -> Option<&MetaSphere> { Some(self) }
+  fn as_sphere(&self) -> &MetaSphere { self }
+}
+
+/// MetaBox
+pub struct MetaBox {
+  /// dens mass
+  pub dm: dReal,
+  /// lxyz
+  pub lxyz: dVector3,
+  /// bounce
+  pub bounce: dReal,
+  /// material
+  pub tcm: TCMaterial
+}
+
+impl MetaBox {
+  /// construct
+  pub fn new(dm: dReal, lxyz: dVector3,
+    bounce: dReal, tex: i32, col: dVector4) -> MetaBox {
+    MetaBox{dm: dm, lxyz: lxyz,
+      bounce: bounce, tcm: TCMaterial::new(tex, col)}
+  }
+}
+
+impl MetaInf for MetaBox {
+  /// MetaID
+  fn id(&self) -> MetaId { MetaId::Box }
+  /// every struct has tcm
+  fn get_tcm(&self) -> &TCMaterial { &self.tcm }
+  /// as MetaBox
+  fn as_box(&self) -> &MetaBox { self }
 }
 
 /// MetaPlane
@@ -75,6 +116,8 @@ pub struct MetaPlane {
   pub lxyz: dVector3,
   /// norm
   pub norm: dVector4,
+  /// bounce
+  pub bounce: dReal,
   /// material
   pub tcm: TCMaterial
 }
@@ -82,8 +125,9 @@ pub struct MetaPlane {
 impl MetaPlane {
   /// construct
   pub fn new(dm: dReal, lxyz: dVector3, norm: dVector4,
-    tex: i32, col: dVector4) -> MetaPlane {
-    MetaPlane{dm: dm, lxyz: lxyz, norm: norm, tcm: TCMaterial::new(tex, col)}
+    bounce: dReal, tex: i32, col: dVector4) -> MetaPlane {
+    MetaPlane{dm: dm, lxyz: lxyz, norm: norm,
+      bounce: bounce, tcm: TCMaterial::new(tex, col)}
   }
 }
 
@@ -93,5 +137,5 @@ impl MetaInf for MetaPlane {
   /// every struct has tcm
   fn get_tcm(&self) -> &TCMaterial { &self.tcm }
   /// as MetaPlane
-  fn as_plane(&self) -> Option<&MetaPlane> { Some(self) }
+  fn as_plane(&self) -> &MetaPlane { self }
 }

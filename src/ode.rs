@@ -74,7 +74,7 @@ pub use prim::{Matrix4, Matrix3, Quaternion};
 
 pub mod meta;
 use meta::*;
-pub use meta::{MetaInf, MetaSphere, MetaPlane};
+pub use meta::{MetaInf, MetaSphere, MetaBox, MetaPlane};
 
 pub mod cls;
 use cls::*;
@@ -319,8 +319,7 @@ unsafe {
 
 /// make sphere primitive object (register it to show on the ODE space world)
 pub fn mk_sphere(&mut self, key: String, mi: Box<dyn MetaInf>) -> dBodyID {
-  let ms = mi.as_sphere().unwrap_or_else(||
-    panic!("Expected Sphere but {:?}", mi.id()));
+  let ms = mi.as_sphere();
   let mut mass: dMass = dMass::new();
 unsafe {
   let gws: &mut Gws = &mut self.gws;
@@ -333,9 +332,23 @@ unsafe {
 }
 
 /// make plane primitive object
+pub fn mk_box(&mut self, key: String, mi: Box<dyn MetaInf>) -> dBodyID {
+  let mb = mi.as_box();
+  let mut mass: dMass = dMass::new();
+unsafe {
+  let gws: &mut Gws = &mut self.gws;
+  dMassSetBox(&mut mass, mb.dm, mb.lxyz[0], mb.lxyz[1], mb.lxyz[2]);
+  let body: dBodyID = dBodyCreate(gws.world());
+  dBodySetMass(body, &mass);
+  let geom: dGeomID = dCreateBox(gws.space(),
+    mb.lxyz[0], mb.lxyz[1], mb.lxyz[2]);
+  self.set_material_and_reg(key, body, geom, mi)
+}
+}
+
+/// make plane primitive object
 pub fn mk_plane(&mut self, key: String, mi: Box<dyn MetaInf>) -> dBodyID {
-  let mp = mi.as_plane().unwrap_or_else(||
-    panic!("Expected Plane but {:?}", mi.id()));
+  let mp = mi.as_plane();
   let mut mass: dMass = dMass::new();
 unsafe {
   let gws: &mut Gws = &mut self.gws;
@@ -635,9 +648,14 @@ unsafe {
       let radius: dReal = dGeomSphereGetRadius(geom);
       dsDrawSphereD(pos, rot, radius as f32);
     },
+    dBoxClass => {
+      let mut lxyz: dVector3 = [0.0; 4];
+      dGeomBoxGetLengths(geom, &mut lxyz[0] as *mut dReal);
+      dsDrawBoxD(pos, rot, &lxyz[0] as *const dReal);
+    },
     dPlaneClass => {
-      let mut v: dVector4 = [0.0; 4];
-      dGeomPlaneGetParams(geom, &mut v[0] as *mut dReal);
+      let mut norm: dVector4 = [0.0; 4];
+      dGeomPlaneGetParams(geom, &mut norm[0] as *mut dReal);
       // (a Plane is not a Box) dGeomBoxGetLengths
       let lxyz: dVector3 = [10.0, 10.0, 0.05, 0.0]; // ***
       dsDrawBoxD(pos, rot, &lxyz[0] as *const dReal);
