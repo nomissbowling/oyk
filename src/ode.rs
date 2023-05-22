@@ -68,9 +68,16 @@ use err::*;
 pub mod mat;
 use mat::*;
 
+pub mod prim;
+use prim::*;
+pub use prim::{Matrix4, Matrix3, Quaternion};
+
+pub mod meta;
+use meta::*;
+pub use meta::{MetaInf, MetaSphere, MetaPlane};
+
 pub mod cls;
 use cls::*;
-pub use cls::{Matrix4, Matrix3, Quaternion};
 
 use std::collections::hash_map::Entry;
 use std::collections::HashMap; // with #[derive(PartialEq, Eq, Hash)] struct
@@ -293,7 +300,7 @@ pub fn num(&self) -> usize {
 
 /// set color, TCMaterial and reg
 pub fn set_material_and_reg(&mut self, key: String,
-  body: dBodyID, geom: dGeomID, col: dVector4) -> dBodyID {
+  body: dBodyID, geom: dGeomID, mi: Box<dyn MetaInf>) -> dBodyID {
 unsafe {
   dGeomSetBody(geom, body);
 }
@@ -304,37 +311,40 @@ unsafe {
       println!("tcms {:?} already exists. skipped", geom); // just in case
       e
     },
-    Entry::Vacant(ve) => { ve.insert(TCMaterial::new(0, col)) }
+    Entry::Vacant(ve) => { ve.insert(mi.get_tcm().clone()) }
   };
-  let obg: Obg = Obg::new(key, body, geom, col);
+  let obg: Obg = Obg::new(key, body, geom, mi.get_tcm().col);
   self.reg(obg)
 }
 
 /// make sphere primitive object (register it to show on the ODE space world)
-pub fn mk_sphere(&mut self, key: String,
-  m: dReal, r: dReal, col: dVector4) -> dBodyID {
+pub fn mk_sphere(&mut self, key: String, mi: Box<dyn MetaInf>) -> dBodyID {
+  let ms = mi.as_sphere().unwrap_or_else(||
+    panic!("Expected Sphere but {:?}", mi.id()));
   let mut mass: dMass = dMass::new();
 unsafe {
   let gws: &mut Gws = &mut self.gws;
-  dMassSetSphereTotal(&mut mass, m, r);
+  dMassSetSphereTotal(&mut mass, ms.m, ms.r);
   let body: dBodyID = dBodyCreate(gws.world());
   dBodySetMass(body, &mass);
-  let geom: dGeomID = dCreateSphere(gws.space(), r);
-  self.set_material_and_reg(key, body, geom, col)
+  let geom: dGeomID = dCreateSphere(gws.space(), ms.r);
+  self.set_material_and_reg(key, body, geom, mi)
 }
 }
 
 /// make plane primitive object
-pub fn mk_plane(&mut self, key: String,
-  dm: dReal, lxyz: &dVector3, n: &dVector4, col: dVector4) -> dBodyID {
+pub fn mk_plane(&mut self, key: String, mi: Box<dyn MetaInf>) -> dBodyID {
+  let mp = mi.as_plane().unwrap_or_else(||
+    panic!("Expected Plane but {:?}", mi.id()));
   let mut mass: dMass = dMass::new();
 unsafe {
   let gws: &mut Gws = &mut self.gws;
-  dMassSetBox(&mut mass, dm, lxyz[0], lxyz[1], lxyz[2]);
+  dMassSetBox(&mut mass, mp.dm, mp.lxyz[0], mp.lxyz[1], mp.lxyz[2]);
   let body: dBodyID = dBodyCreate(gws.world());
   dBodySetMass(body, &mass);
-  let geom: dGeomID = dCreatePlane(gws.space(), n[0], n[1], n[2], n[3]);
-  self.set_material_and_reg(key, body, geom, col)
+  let geom: dGeomID = dCreatePlane(gws.space(),
+    mp.norm[0], mp.norm[1], mp.norm[2], mp.norm[3]);
+  self.set_material_and_reg(key, body, geom, mi)
 }
 }
 
