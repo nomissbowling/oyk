@@ -590,7 +590,7 @@ unsafe {
   /// start default callback function
   fn start_callback(&mut self);
   /// near default callback function
-  fn near_callback(&mut self, o1: dGeomID, o2: dGeomID);
+  fn near_callback(&mut self, dat: *mut c_void, o1: dGeomID, o2: dGeomID);
   /// step default callback function
   fn step_callback(&mut self, pause: i32);
   /// command default callback function
@@ -686,10 +686,20 @@ unsafe {
 }
 
 /// near default callback function
-fn near_callback(&mut self, o1: dGeomID, o2: dGeomID) {
+fn near_callback(&mut self, dat: *mut c_void, o1: dGeomID, o2: dGeomID) {
   ostatln!("called default near");
   let gws = &self.gws;
 unsafe {
+  if dGeomIsSpace(o1) != 0 || dGeomIsSpace(o2) != 0 {
+    dSpaceCollide2(o1, o2, dat, Some(c_near_callback));
+    if dGeomIsSpace(o1) != 0 {
+      dSpaceCollide(o1 as dSpaceID, dat, Some(c_near_callback));
+    }
+    if dGeomIsSpace(o2) != 0 {
+      dSpaceCollide(o2 as dSpaceID, dat, Some(c_near_callback));
+    }
+    return;
+  }
   // if !(gws.ground() == o1 || gws.ground() == o2) { return; }
   const num: usize = 40;
   let contacts: &mut Vec<dContact> = &mut vec![dContact::new(); num];
@@ -775,9 +785,9 @@ fn c_start_callback() {
 }
 
 unsafe extern "C"
-fn c_near_callback(_dat: *mut c_void, o1: dGeomID, o2: dGeomID) {
+fn c_near_callback(dat: *mut c_void, o1: dGeomID, o2: dGeomID) {
   let rode: &mut ODE = &mut ode_mut!();
-  ode_sim!(rode, near_callback, o1, o2)
+  ode_sim!(rode, near_callback, dat, o1, o2)
 }
 
 unsafe extern "C"
