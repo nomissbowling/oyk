@@ -318,76 +318,45 @@ unsafe {
   self.reg(obg)
 }
 
-/// make sphere primitive object (register it to show on the ODE space world)
-pub fn mk_sphere(&mut self, key: String, mi: Box<dyn MetaInf>) -> dBodyID {
-  let ms = mi.as_sphere();
+/// create primitive object (register it to show on the ODE space world)
+pub fn creator(&mut self, key: String, mi: Box<dyn MetaInf>) -> dBodyID {
+  let gws: &mut Gws = &mut self.gws;
+  let body: dBodyID;
+  let geom: dGeomID;
   let mut mass: dMass = dMass::new();
 unsafe {
-  let gws: &mut Gws = &mut self.gws;
-  dMassSetSphereTotal(&mut mass, ms.m, ms.r);
-  let body: dBodyID = dBodyCreate(gws.world());
+  geom = match mi.id() {
+    MetaId::Sphere => {
+      let ms = mi.as_sphere();
+      dMassSetSphereTotal(&mut mass, ms.m, ms.r);
+      dCreateSphere(gws.space(), ms.r)
+    },
+    MetaId::Box => {
+      let mb = mi.as_box();
+      dMassSetBox(&mut mass, mb.dm, mb.lxyz[0], mb.lxyz[1], mb.lxyz[2]);
+      dCreateBox(gws.space(), mb.lxyz[0], mb.lxyz[1], mb.lxyz[2])
+    },
+    MetaId::Capsule => {
+      let mc = mi.as_capsule();
+      dMassSetCapsule(&mut mass, mc.dm, 3, mc.r, mc.l);
+      dCreateCapsule(gws.space(), mc.r, mc.l)
+    },
+    MetaId::Cylinder => {
+      let mc = mi.as_cylinder();
+      dMassSetCylinder(&mut mass, mc.dm, 3, mc.r, mc.l);
+      dCreateCylinder(gws.space(), mc.r, mc.l)
+    },
+    MetaId::Plane => {
+      let mp = mi.as_plane();
+      dMassSetBox(&mut mass, mp.dm, mp.lxyz[0], mp.lxyz[1], mp.lxyz[2]);
+      dCreatePlane(gws.space(), mp.norm[0], mp.norm[1], mp.norm[2], mp.norm[3])
+    },
+    _ => { panic!("creator not implemented for {:?}", mi.id()); }
+  };
+  body = dBodyCreate(gws.world());
   dBodySetMass(body, &mass);
-  let geom: dGeomID = dCreateSphere(gws.space(), ms.r);
+}
   self.set_material_and_reg(key, body, geom, mi)
-}
-}
-
-/// make plane primitive object
-pub fn mk_box(&mut self, key: String, mi: Box<dyn MetaInf>) -> dBodyID {
-  let mb = mi.as_box();
-  let mut mass: dMass = dMass::new();
-unsafe {
-  let gws: &mut Gws = &mut self.gws;
-  dMassSetBox(&mut mass, mb.dm, mb.lxyz[0], mb.lxyz[1], mb.lxyz[2]);
-  let body: dBodyID = dBodyCreate(gws.world());
-  dBodySetMass(body, &mass);
-  let geom: dGeomID = dCreateBox(gws.space(),
-    mb.lxyz[0], mb.lxyz[1], mb.lxyz[2]);
-  self.set_material_and_reg(key, body, geom, mi)
-}
-}
-
-/// make plane primitive object
-pub fn mk_capsule(&mut self, key: String, mi: Box<dyn MetaInf>) -> dBodyID {
-  let mc = mi.as_capsule();
-  let mut mass: dMass = dMass::new();
-unsafe {
-  let gws: &mut Gws = &mut self.gws;
-  dMassSetCapsule(&mut mass, mc.dm, 3, mc.r, mc.l);
-  let body: dBodyID = dBodyCreate(gws.world());
-  dBodySetMass(body, &mass);
-  let geom: dGeomID = dCreateCapsule(gws.space(), mc.r, mc.l);
-  self.set_material_and_reg(key, body, geom, mi)
-}
-}
-
-/// make plane primitive object
-pub fn mk_cylinder(&mut self, key: String, mi: Box<dyn MetaInf>) -> dBodyID {
-  let mc = mi.as_cylinder();
-  let mut mass: dMass = dMass::new();
-unsafe {
-  let gws: &mut Gws = &mut self.gws;
-  dMassSetCylinder(&mut mass, mc.dm, 3, mc.r, mc.l);
-  let body: dBodyID = dBodyCreate(gws.world());
-  dBodySetMass(body, &mass);
-  let geom: dGeomID = dCreateCylinder(gws.space(), mc.r, mc.l);
-  self.set_material_and_reg(key, body, geom, mi)
-}
-}
-
-/// make plane primitive object
-pub fn mk_plane(&mut self, key: String, mi: Box<dyn MetaInf>) -> dBodyID {
-  let mp = mi.as_plane();
-  let mut mass: dMass = dMass::new();
-unsafe {
-  let gws: &mut Gws = &mut self.gws;
-  dMassSetBox(&mut mass, mp.dm, mp.lxyz[0], mp.lxyz[1], mp.lxyz[2]);
-  let body: dBodyID = dBodyCreate(gws.world());
-  dBodySetMass(body, &mass);
-  let geom: dGeomID = dCreatePlane(gws.space(),
-    mp.norm[0], mp.norm[1], mp.norm[2], mp.norm[3]);
-  self.set_material_and_reg(key, body, geom, mi)
-}
 }
 
 /// register object (to HashMap and BTreeMap)
