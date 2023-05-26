@@ -85,3 +85,13 @@ extern "C" {
     #[doc = " legacy C interface"]
     pub fn bput();
 }
+#[doc = " adhoc C macro and static __inline functions"]
+pub type dReal = f64;
+extern "C" {
+    #[doc = " res = a(&dMatrix3) b(&dVector3)"]
+    pub fn dMULTIPLY0_331(res: *mut dReal, a: *const dReal, b: *const dReal);
+}
+extern "C" {
+    #[doc = " res = a(&dMatrix3) b(&dMatrix3)"]
+    pub fn dMULTIPLY0_333(res: *mut dReal, a: *const dReal, b: *const dReal);
+}

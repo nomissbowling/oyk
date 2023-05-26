@@ -25,8 +25,8 @@ impl ODEError {
   }
 
   /// construct
-  pub fn no_tcm_id(id: dGeomID) -> ODEError {
-    ODEError{msg: format!("no tcm id {:018p} in tcms", id)}
+  pub fn no_mgm_id(id: dGeomID) -> ODEError {
+    ODEError{msg: format!("no mgm id {:018p} in mgms", id)}
   }
 }
 

@@ -57,6 +57,8 @@ pub fn new() -> dContact {
 
 /// constructor and converter for primitive type
 pub trait Quaternion {
+  /// ptr mut of dQuaternion
+  fn as_ptr_mut(&mut self) -> *mut dReal;
   /// ptr of dQuaternion (use for converter)
   fn as_ptr(&self) -> *const dReal;
 
@@ -64,7 +66,7 @@ pub trait Quaternion {
   fn new() -> dQuaternion {
     let mut q: dQuaternion = [0.0; 4];
 unsafe {
-    dQSetIdentity(&mut q[0] as *mut dReal);
+    dQSetIdentity(q.as_ptr_mut());
 }
     q
   }
@@ -73,7 +75,7 @@ unsafe {
   fn from_R(m: dMatrix3) -> dQuaternion {
     let mut q: dQuaternion = [0.0; 4];
 unsafe {
-    dQfromR(&mut q[0] as *mut dReal, &m[0] as *const dReal as *mut dReal);
+    dQfromR(q.as_ptr_mut(), m.as_ptr() as *mut dReal);
 }
     q
   }
@@ -82,7 +84,7 @@ unsafe {
   fn to_R(&self) -> dMatrix3 {
     let mut m: dMatrix3 = [0.0; 12];
 unsafe {
-    dRfromQ(&mut m[0] as *mut dReal, self.as_ptr() as *mut dReal);
+    dRfromQ(m.as_ptr_mut(), self.as_ptr() as *mut dReal);
 }
     m
   }
@@ -91,20 +93,23 @@ unsafe {
   fn from_axis_and_angle(axis: [dReal; 3], angle: dReal) -> dQuaternion {
     let mut q: dQuaternion = [0.0; 4];
 unsafe {
-    dQFromAxisAndAngle(&mut q[0] as *mut dReal,
-      axis[0], axis[1], axis[2], angle);
+    dQFromAxisAndAngle(q.as_ptr_mut(), axis[0], axis[1], axis[2], angle);
 }
     q
   }
 }
 
 impl Quaternion for dQuaternion {
+  /// ptr mut of dQuaternion
+  fn as_ptr_mut(&mut self) -> *mut dReal { &mut (*self)[0] as *mut dReal }
   /// ptr of dQuaternion (use for converter)
   fn as_ptr(&self) -> *const dReal { &(*self)[0] as *const dReal }
 }
 
 /// constructor and converter for primitive type
 pub trait Matrix3 {
+  /// ptr mut of dMatrix3
+  fn as_ptr_mut(&mut self) -> *mut dReal;
   /// ptr of dMatrix3 (use for converter)
   fn as_ptr(&self) -> *const dReal;
 
@@ -112,7 +117,7 @@ pub trait Matrix3 {
   fn new() -> dMatrix3 {
     let mut m: dMatrix3 = [0.0; 12];
 unsafe {
-    dRSetIdentity(&mut m[0] as *mut dReal);
+    dRSetIdentity(m.as_ptr_mut());
 }
     m
   }
@@ -121,7 +126,7 @@ unsafe {
   fn from_Q(q: dQuaternion) -> dMatrix3 {
     let mut m: dMatrix3 = [0.0; 12];
 unsafe {
-    dRfromQ(&mut m[0] as *mut dReal, &q[0] as *const dReal as *mut dReal);
+    dRfromQ(m.as_ptr_mut(), q.as_ptr() as *mut dReal);
 }
     m
   }
@@ -130,7 +135,7 @@ unsafe {
   fn to_Q(&self) -> dQuaternion {
     let mut q: dQuaternion = [0.0; 4];
 unsafe {
-    dQfromR(&mut q[0] as *mut dReal, self.as_ptr() as *mut dReal);
+    dQfromR(q.as_ptr_mut(), self.as_ptr() as *mut dReal);
 }
     q
   }
@@ -139,8 +144,7 @@ unsafe {
   fn from_axis_and_angle(axis: [dReal; 3], angle: dReal) -> dMatrix3 {
     let mut m: dMatrix3 = [0.0; 12];
 unsafe {
-    dRFromAxisAndAngle(&mut m[0] as *mut dReal,
-      axis[0], axis[1], axis[2], angle);
+    dRFromAxisAndAngle(m.as_ptr_mut(), axis[0], axis[1], axis[2], angle);
 }
     m
   }
@@ -149,7 +153,7 @@ unsafe {
   fn from_euler_angles(phi: dReal, theta: dReal, psi: dReal) -> dMatrix3 {
     let mut m: dMatrix3 = [0.0; 12];
 unsafe {
-    dRFromEulerAngles(&mut m[0] as *mut dReal, phi, theta, psi);
+    dRFromEulerAngles(m.as_ptr_mut(), phi, theta, psi);
 }
     m
   }
@@ -158,8 +162,7 @@ unsafe {
   fn from_2_axes(e0: [dReal; 3], e1: [dReal; 3]) -> dMatrix3 {
     let mut m: dMatrix3 = [0.0; 12];
 unsafe {
-    dRFrom2Axes(&mut m[0] as *mut dReal,
-      e0[0], e0[1], e0[2], e1[0], e1[1], e1[2]);
+    dRFrom2Axes(m.as_ptr_mut(), e0[0], e0[1], e0[2], e1[0], e1[1], e1[2]);
 }
     m
   }
@@ -168,13 +171,15 @@ unsafe {
   fn from_z_axis(e: [dReal; 3]) -> dMatrix3 {
     let mut m: dMatrix3 = [0.0; 12];
 unsafe {
-    dRFromZAxis(&mut m[0] as *mut dReal, e[0], e[1], e[2]);
+    dRFromZAxis(m.as_ptr_mut(), e[0], e[1], e[2]);
 }
     m
   }
 }
 
 impl Matrix3 for dMatrix3 {
+  /// ptr mut of dMatrix3
+  fn as_ptr_mut(&mut self) -> *mut dReal { &mut (*self)[0] as *mut dReal }
   /// ptr of dMatrix3 (use for converter)
   fn as_ptr(&self) -> *const dReal { &(*self)[0] as *const dReal }
 }

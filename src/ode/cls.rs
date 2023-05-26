@@ -84,8 +84,8 @@ macro_rules! as_id { // common Obg and Gws
 pub struct Obg { // unsafe *mut xxx
   /// key
   pub key: String,
-  body: usize, // dBodyID,
-  geom: usize, // dGeomID,
+  body: usize, // dBodyID
+  geom: usize, // dGeomID (handle only first geom)
   /// color (low priority obg.col &lt; tcm.col)
   pub col: dVector4
 }
@@ -94,8 +94,8 @@ pub struct Obg { // unsafe *mut xxx
 impl Obg {
 
 /// construct
-pub fn new(key: String, body: dBodyID, geom: dGeomID, col: dVector4) -> Obg {
-  Obg{key: key, body: body as usize, geom: geom as usize, col: col}
+pub fn new(key: &str, body: dBodyID, geom: dGeomID, col: dVector4) -> Obg {
+  Obg{key: key.to_string(), body: body as usize, geom: geom as usize, col: col}
 }
 
 /// setter
@@ -174,7 +174,7 @@ unsafe {
 /// set rotation
 pub fn set_rot(&mut self, rot: dMatrix3) -> &mut Obg {
 unsafe {
-  dBodySetRotation(self.body(), &rot[0] as *const dReal as *mut dReal);
+  dBodySetRotation(self.body(), rot.as_ptr() as *mut dReal);
 }
   self
 }
@@ -182,7 +182,7 @@ unsafe {
 /// set quaternion
 pub fn set_quaternion(&mut self, q: dQuaternion) -> &mut Obg {
 unsafe {
-  dBodySetQuaternion(self.body(), &q[0] as *const dReal as *mut dReal);
+  dBodySetQuaternion(self.body(), q.as_ptr() as *mut dReal);
 }
   self
 }
@@ -191,9 +191,9 @@ unsafe {
 
 /// object of ODE, gws: singleton
 pub struct Gws { // unsafe *mut xxx
-  world: usize, // dWorldID,
-  space: usize, // dSpaceID,
-  ground: usize, // dGeomID,
+  world: usize, // dWorldID
+  space: usize, // dSpaceID
+  ground: usize, // dGeomID
   contactgroup: usize // dJointGroupID
 }
 
@@ -225,6 +225,14 @@ pub fn contactgroup(&self) -> dJointGroupID { as_id!(self, contactgroup) }
 }
 
 // pub const GwsLen: usize = std::mem::size_of::<Gws>(); // 32
+
+/// GeomOffset
+pub struct GeomOffset<'a> {
+  /// geom sub
+  pub gsub: dGeomID,
+  /// offset
+  pub o: &'a dVector3
+}
 
 /// material(s) of ODE, tcms: HashMap&lt;dGeomID, TCMaterial&gt;
 #[derive(Clone)]

@@ -43,6 +43,7 @@
 mod cppbridge;
 use cppbridge::*;
 pub use cppbridge::{Bridge, bput};
+pub use cppbridge::{dMULTIPLY0_331, dMULTIPLY0_333};
 
 mod cdrawstuff;
 use cdrawstuff::*;
@@ -74,7 +75,7 @@ pub use prim::{Matrix4, Matrix3, Quaternion};
 
 pub mod meta;
 use meta::*;
-pub use meta::{MetaInf};
+pub use meta::{MetaInf, MetaComposite};
 pub use meta::{MetaSphere, MetaBox, MetaCapsule, MetaCylinder, MetaPlane};
 
 pub mod cls;
@@ -107,7 +108,7 @@ pub struct ODE { // unsafe
   sw_viewpoint: usize, // switch viewpoint
   /// viewpoint(s)
   pub cams: BTreeMap<usize, Cam>,
-  tcms: HashMap<dGeomID, TCMaterial>, // material(s) mapped
+  mgms: HashMap<dGeomID, Box<dyn MetaInf>>, // metainf(s) material(s) mapped
   obgs: HashMap<dBodyID, Obg>, // object(s) mapped (obg has key: String)
   mbgs: BTreeMap<String, dBodyID>, // object id(s) ordered mapped (key: cloned)
   vbgs: VecDeque<dBodyID>, // object id(s) ordered (drawing order)
@@ -219,7 +220,7 @@ pub fn new(delta: dReal) -> ODE {
       Cam::new(vec![10.0, 10.0, 5.0], vec![-150.0, 0.0, 3.0]),
       Cam::new(vec![-20.0, -20.0, 10.0], vec![45.0, -15.0, 0.0])
     ].into_iter().enumerate().collect(), // to BTreeMap<usize, Cam>
-    tcms: vec![].into_iter().collect(),
+    mgms: vec![].into_iter().collect(),
     obgs: vec![].into_iter().collect(), mbgs: vec![].into_iter().collect(),
     vbgs: vec![].try_into().unwrap_or_else(|o: std::convert::Infallible|
       panic!("Expected VecDeque<dBodyID> from vec![] Infallible ({:?})", o)),
@@ -299,68 +300,23 @@ pub fn num(&self) -> usize {
   self.obgs.len()
 }
 
-/// set color, TCMaterial and reg
-pub fn set_material_and_reg(&mut self, key: String,
-  body: dBodyID, geom: dGeomID, mi: Box<dyn MetaInf>) -> dBodyID {
-unsafe {
-  dGeomSetBody(geom, body);
-}
-  // self.tcms.entry(geom).or_insert_with(|| TCMaterial::new(0, col));
-  match self.tcms.entry(geom) { // expect geom is never duplicated
+/// reg mgm (MetaInf, TCMaterial) (geom to HashMap) returns color
+pub fn reg_mgm(&mut self, geom: dGeomID, mi: Box<dyn MetaInf>) -> dVector4 {
+  let col = mi.get_tcm().col;
+  // self.mgms.entry(geom).or_insert_with(|| mi);
+  match self.mgms.entry(geom) { // expect geom is never duplicated
     Entry::Occupied(mut oe) => {
       let e = oe.get_mut();
-      println!("tcms {:?} already exists. skipped", geom); // just in case
+      println!("mgms {:?} already exists. skipped", geom); // just in case
       e
     },
-    Entry::Vacant(ve) => { ve.insert(mi.get_tcm().clone()) }
+    Entry::Vacant(ve) => { ve.insert(mi) }
   };
-  let obg: Obg = Obg::new(key, body, geom, mi.get_tcm().col);
-  self.reg(obg)
+  col
 }
 
-/// create primitive object (register it to show on the ODE space world)
-pub fn creator(&mut self, key: String, mi: Box<dyn MetaInf>) -> dBodyID {
-  let gws: &mut Gws = &mut self.gws;
-  let body: dBodyID;
-  let geom: dGeomID;
-  let mut mass: dMass = dMass::new();
-unsafe {
-  geom = match mi.id() {
-    MetaId::Sphere => {
-      let ms = mi.as_sphere();
-      dMassSetSphereTotal(&mut mass, ms.m, ms.r);
-      dCreateSphere(gws.space(), ms.r)
-    },
-    MetaId::Box => {
-      let mb = mi.as_box();
-      dMassSetBox(&mut mass, mb.dm, mb.lxyz[0], mb.lxyz[1], mb.lxyz[2]);
-      dCreateBox(gws.space(), mb.lxyz[0], mb.lxyz[1], mb.lxyz[2])
-    },
-    MetaId::Capsule => {
-      let mc = mi.as_capsule();
-      dMassSetCapsule(&mut mass, mc.dm, 3, mc.r, mc.l);
-      dCreateCapsule(gws.space(), mc.r, mc.l)
-    },
-    MetaId::Cylinder => {
-      let mc = mi.as_cylinder();
-      dMassSetCylinder(&mut mass, mc.dm, 3, mc.r, mc.l);
-      dCreateCylinder(gws.space(), mc.r, mc.l)
-    },
-    MetaId::Plane => {
-      let mp = mi.as_plane();
-      dMassSetBox(&mut mass, mp.dm, mp.lxyz[0], mp.lxyz[1], mp.lxyz[2]);
-      dCreatePlane(gws.space(), mp.norm[0], mp.norm[1], mp.norm[2], mp.norm[3])
-    },
-    _ => { panic!("creator not implemented for {:?}", mi.id()); }
-  };
-  body = dBodyCreate(gws.world());
-  dBodySetMass(body, &mass);
-}
-  self.set_material_and_reg(key, body, geom, mi)
-}
-
-/// register object (to HashMap and BTreeMap)
-pub fn reg(&mut self, obg: Obg) -> dBodyID {
+/// reg obg (body to HashMap, BTreeMap, and VecDeque) returns body
+pub fn reg_obg(&mut self, obg: Obg) -> dBodyID {
   let id = obg.body();
   let obgs: &mut HashMap<dBodyID, Obg> = &mut self.obgs;
   // let key = obgs.entry(id).or_insert(obg).key.clone();
@@ -389,17 +345,159 @@ pub fn reg(&mut self, obg: Obg) -> dBodyID {
   id
 }
 
-/// search material mut (from HashMap)
-pub fn get_tcm_mut(&mut self, id: dGeomID) ->
-  Result<&mut TCMaterial, Box<dyn Error>> {
-  let tcms: &mut HashMap<dGeomID, TCMaterial> = &mut self.tcms;
-  Ok(tcms.get_mut(&id).ok_or(ODEError::no_tcm_id(id))?)
+/// create primitive object (register it to show on the ODE space world)
+pub fn creator(&mut self, key: &str, mi: Box<dyn MetaInf>) ->
+  (dBodyID, dGeomID, Box<dMass>) {
+  let gws: &mut Gws = &mut self.gws;
+  let world: dWorldID = gws.world();
+  let space: dSpaceID = if key == "" { 0 as dSpaceID } else { gws.space() };
+  let body: dBodyID;
+  let geom: dGeomID;
+  let mut mass: Box<dMass> = Box::new(dMass::new());
+unsafe {
+  geom = match mi.id() {
+    MetaId::Sphere => {
+      let ms = mi.as_sphere();
+      // dMassSetSphere(&mut *mass, ms.dm, ms.r); // *** (replace below or flg)
+      dMassSetSphereTotal(&mut *mass, ms.m, ms.r);
+      dCreateSphere(space, ms.r)
+    },
+    MetaId::Box => {
+      let mb = mi.as_box();
+      dMassSetBox(&mut *mass, mb.dm, mb.lxyz[0], mb.lxyz[1], mb.lxyz[2]);
+      // dMassSetBoxTotal(&mut *mass, mb.m, mb.lxyz[0], mb.lxyz[1], mb.lxyz[2]); // *** (may remove this line)
+      dCreateBox(space, mb.lxyz[0], mb.lxyz[1], mb.lxyz[2])
+    },
+    MetaId::Capsule => {
+      let mc = mi.as_capsule();
+      dMassSetCapsule(&mut *mass, mc.dm, 3, mc.r, mc.l);
+      dCreateCapsule(space, mc.r, mc.l)
+    },
+    MetaId::Cylinder => {
+      let mc = mi.as_cylinder();
+      dMassSetCylinder(&mut *mass, mc.dm, 3, mc.r, mc.l);
+      dCreateCylinder(space, mc.r, mc.l)
+    },
+    MetaId::Plane => {
+      let mp = mi.as_plane();
+      dMassSetBox(&mut *mass, mp.dm, mp.lxyz[0], mp.lxyz[1], mp.lxyz[2]);
+      dCreatePlane(space, mp.norm[0], mp.norm[1], mp.norm[2], mp.norm[3])
+    },
+    MetaId::Convex => {
+      panic!("TODO: creator not implemented for {:?}", mi.id());
+/*
+      let mc = mi.as_convex();
+      let g: dGeomID = CreateGeomConvexFromFVP(0, mc.v as *mut convexfvp);
+      _MassSetConvexAsTrimesh(&mut *mass, mc.dm, g);
+      dGeomSetPosition(g, -mass.c[0], -mass.c[1], -mass.c[2]); // ***
+      dMassTranslate(&mut *mass, -mass.c[0], -mass.c[1], -mass.c[2]); // ***
+      g
+*/
+    },
+    MetaId::TriMesh => {
+      panic!("TODO: creator not implemented for {:?}", mi.id());
+/*
+      let mt = mi.as_trimesh();
+      let g: dGeomID = CreateGeomTrimeshFromVI(0, mt.v as *mut trimeshvi);
+      dMassSetTrimesh(&mut *mass, mt.dm, g);
+      dGeomSetPosition(g, -mass.c[0], -mass.c[1], -mass.c[2]); // ***
+      dMassTranslate(&mut *mass, -mass.c[0], -mass.c[1], -mass.c[2]); // ***
+      g
+*/
+    },
+    MetaId::Composite => {
+      panic!("use creator_composite for {:?}", mi.id());
+    },
+    _ => { panic!("creator not implemented for {:?}", mi.id()); }
+  };
+}
+  let col = self.reg_mgm(geom, mi); // must call reg_mgm when not use col
+  (if key == "" {
+    0 as dBodyID
+  }else{
+unsafe {
+    body = dBodyCreate(world);
+    dBodySetMass(body, &*mass);
+    dGeomSetBody(geom, body);
+}
+    let obg: Obg = Obg::new(key, body, geom, col);
+    self.reg_obg(obg)
+  }, geom, mass)
 }
 
-/// search material (from HashMap)
-pub fn get_tcm(&self, id: dGeomID) -> Result<&TCMaterial, Box<dyn Error>> {
-  let tcms: &HashMap<dGeomID, TCMaterial> = &self.tcms;
-  Ok(tcms.get(&id).ok_or(ODEError::no_tcm_id(id))?)
+/// create composite object (register it to show on the ODE space world)
+pub fn creator_composite(&mut self, key: &str, mi: Box<dyn MetaInf>) ->
+  (dBodyID, dGeomID, Box<dMass>) {
+  let gws: &mut Gws = &mut self.gws;
+  let world: dWorldID = gws.world();
+  let space: dSpaceID = gws.space();
+  let body: dBodyID;
+  let geom: dGeomID;
+  let mut mass: Box<dMass> = Box::new(dMass::new());
+  // to keep order
+  let mut gto: VecDeque<dGeomID> = vec![].try_into().unwrap(); // no or_else
+  // gtrans, {gsub, o}
+  let mut gts: HashMap<dGeomID, GeomOffset> = vec![].into_iter().collect();
+unsafe {
+  body = dBodyCreate(world);
+}
+  geom = match mi.id() {
+    MetaId::Composite => {
+      let mc = mi.as_composite();
+unsafe {
+      for (j, emi) in mc.elems.iter().enumerate() {
+        let gtrans: dGeomID = dCreateGeomTransform(space);
+        dGeomTransformSetCleanup(gtrans, 1);
+        let (_, gsub, mut subm) = self.creator("", emi.dup());
+        dGeomTransformSetGeom(gtrans, gsub);
+        gto.push_front(gtrans); // first <-> last gto.push_back(gtrans);
+        let o = &mc.ofs[j];
+        gts.entry(gtrans).or_insert_with(|| GeomOffset{gsub: gsub, o: o});
+        dGeomSetPosition(gsub, o[0], o[1], o[2]);
+        dMassTranslate(&mut *subm, o[0], o[1], o[2]);
+        let q = &mc.qs[j];
+        // dQSetIdentity(q.as_ptr_mut());
+        // dQFromAxisAndAngle(q.as_ptr_mut(), , , , M_PI / 2.0);
+        dGeomSetQuaternion(gsub, q.as_ptr() as *mut dReal);
+        dMassRotate(&mut *subm, dMatrix3::from_Q(*q).as_ptr() as *mut dReal);
+        dMassAdd(&mut *mass, &*subm);
+      }
+      0 as dGeomID // space
+}
+    },
+    _ => { panic!("use creator for {:?}", mi.id()); }
+  };
+unsafe {
+  // adjust from CG != (0, 0, 0)
+  for (gtrans, gso) in &gts {
+    let o = gso.o;
+    dGeomSetPosition(gso.gsub, o[0]-mass.c[0], o[1]-mass.c[1], o[2]-mass.c[2]);
+  }
+  dMassTranslate(&mut *mass, -mass.c[0], -mass.c[1], -mass.c[2]);
+  dBodySetMass(body, &*mass); // CG == (0, 0, 0)
+  for gtrans in &gto {
+    dGeomSetBody(*gtrans, body);
+  }
+}
+  gts.clear();
+  gto.clear();
+  let col = mi.get_tcm().col;
+  let obg: Obg = Obg::new(key, body, geom, col);
+  (self.reg_obg(obg), geom, mass)
+}
+
+/// search MetaInf, TCMaterial mut (from HashMap)
+pub fn get_mgm_mut(&mut self, id: dGeomID) ->
+  Result<&mut Box<dyn MetaInf>, Box<dyn Error>> {
+  let mgms: &mut HashMap<dGeomID, Box<dyn MetaInf>> = &mut self.mgms;
+  Ok(mgms.get_mut(&id).ok_or(ODEError::no_mgm_id(id))?)
+}
+
+/// search MetaInf, TCMaterial (from HashMap)
+pub fn get_mgm(&self, id: dGeomID) ->
+  Result<&Box<dyn MetaInf>, Box<dyn Error>> {
+  let mgms: &HashMap<dGeomID, Box<dyn MetaInf>> = &self.mgms;
+  Ok(mgms.get(&id).ok_or(ODEError::no_mgm_id(id))?)
 }
 
 /// search id (from BTreeMap)
@@ -483,8 +581,8 @@ unsafe {
   mbgs.clear();
   let vbgs: &mut VecDeque<dBodyID> = &mut ode_get_mut!(vbgs);
   vbgs.clear();
-  let tcms: &mut HashMap<dGeomID, TCMaterial> = &mut ode_get_mut!(tcms);
-  tcms.clear();
+  let mgms: &mut HashMap<dGeomID, Box<dyn MetaInf>> = &mut ode_get_mut!(mgms);
+  mgms.clear();
   let rode: &mut ODE = &mut ode_mut!();
   rode.modify();
 }
@@ -628,12 +726,13 @@ fn draw_geom(&self, geom: dGeomID,
 unsafe {
   let pos: *const dReal = pos.unwrap_or_else(|| dGeomGetPosition(geom));
   let rot: *const dReal = rot.unwrap_or_else(|| dGeomGetRotation(geom));
-  let col: &dVector4 = match self.get_tcm(geom) {
+  let col: &dVector4 = match self.get_mgm(geom) {
     Err(e) => {
       let obg = self.get(dGeomGetBody(geom)).unwrap(); // must care ok_or
       &obg.col
     },
-    Ok(tcm) => {
+    Ok(mgm) => {
+      let tcm = mgm.get_tcm();
       dsSetTexture(tcm.tex);
       &tcm.col
     }
@@ -648,8 +747,8 @@ unsafe {
     },
     dBoxClass => {
       let mut lxyz: dVector3 = [0.0; 4];
-      dGeomBoxGetLengths(geom, &mut lxyz[0] as *mut dReal);
-      dsDrawBoxD(pos, rot, &lxyz[0] as *const dReal);
+      dGeomBoxGetLengths(geom, lxyz.as_ptr_mut());
+      dsDrawBoxD(pos, rot, lxyz.as_ptr());
     },
     dCapsuleClass => {
       let mut r: dReal = 0.0;
@@ -665,10 +764,34 @@ unsafe {
     },
     dPlaneClass => {
       let mut norm: dVector4 = [0.0; 4];
-      dGeomPlaneGetParams(geom, &mut norm[0] as *mut dReal);
+      dGeomPlaneGetParams(geom, norm.as_ptr_mut());
       // (a Plane is not a Box) dGeomBoxGetLengths
       let lxyz: dVector3 = [10.0, 10.0, 0.05, 0.0]; // ***
-      dsDrawBoxD(pos, rot, &lxyz[0] as *const dReal);
+      dsDrawBoxD(pos, rot, lxyz.as_ptr());
+    },
+    dRayClass => {
+      println!("not implemented class: {}", cls);
+    },
+    dConvexClass => {
+      println!("not implemented class: {}", cls);
+    },
+    dGeomTransferClass => {
+      let gt: dGeomID = dGeomTransformGetGeom(geom);
+      let gtpos: *const dReal = dGeomGetPosition(gt);
+      let gtrot: *const dReal = dGeomGetRotation(gt);
+      let mut rpos: dVector3 = [0.0; 4];
+      let mut rrot: dMatrix3 = [0.0; 12];
+      dMULTIPLY0_331(rpos.as_ptr_mut(), rot, gtpos);
+      let ppos = std::slice::from_raw_parts(pos, 4); // must be in unsafe
+      for i in 0..4 { rpos[i] += ppos[i]; }
+      dMULTIPLY0_333(rrot.as_ptr_mut(), rot, gtrot);
+      self.draw_geom(gt, Some(rpos.as_ptr()), Some(rrot.as_ptr()), ws);
+    },
+    dTriMeshClass => {
+      println!("not implemented class: {}", cls);
+    },
+    dHeightfieldClass => {
+      println!("not implemented class: {}", cls);
     },
     _ => { println!("unknown class: {}", cls); }
   }
@@ -706,14 +829,14 @@ unsafe {
   let sz: i32 = std::mem::size_of::<dContact>() as i32;
   let n: i32 = dCollide(o1, o2, num as i32, &mut contacts[0].geom, sz);
   for i in 0..n as usize {
-    let cntct: &mut dContact = &mut contacts[i];
-    cntct.surface.mu = dInfinity;
-    cntct.surface.mode = dContactBounce;
-    cntct.surface.bounce = 0.95; // 0.0
-    cntct.surface.bounce_vel = 0.0;
-    let c: dJointID = dJointCreateContact(
-      gws.world(), gws.contactgroup(), cntct);
-    dJointAttach(c, dGeomGetBody(cntct.geom.g1), dGeomGetBody(cntct.geom.g2));
+    let p: &mut dContact = &mut contacts[i];
+    p.surface.mu = dInfinity;
+    p.surface.mode = dContactBounce;
+    p.surface.bounce = 0.95; // 0.0
+    p.surface.bounce_vel = 0.0;
+    let c: dJointID = dJointCreateContact(gws.world(), gws.contactgroup(), p);
+    // dJointAttach(c, dGeomGetBody(p.geom.g1), dGeomGetBody(p.geom.g2));
+    dJointAttach(c, dGeomGetBody(o1), dGeomGetBody(o2));
   }
 }
 }
