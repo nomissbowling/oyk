@@ -72,6 +72,8 @@ use mat::*;
 pub mod prim;
 use prim::*;
 pub use prim::{Matrix4, Matrix3, Quaternion};
+pub use prim::{PId, PI, PIh, PIt, PIq, PIx};
+pub use prim::{PIh3, PIt2, PIt4, PIt5, PIq3};
 
 pub mod meta;
 use meta::*;
@@ -346,7 +348,7 @@ pub fn reg_obg(&mut self, obg: Obg) -> dBodyID {
 }
 
 /// create primitive object (register it to show on the ODE space world)
-pub fn creator(&mut self, key: &str, mi: Box<dyn MetaInf>) ->
+pub fn creator_dm(&mut self, key: &str, mi: Box<dyn MetaInf>, fmdm: bool) ->
   (dBodyID, dGeomID, Box<dMass>) {
   let gws: &mut Gws = &mut self.gws;
   let world: dWorldID = gws.world();
@@ -358,14 +360,21 @@ unsafe {
   geom = match mi.id() {
     MetaId::Sphere => {
       let ms = mi.as_sphere();
-      // dMassSetSphere(&mut *mass, ms.dm, ms.r); // *** (replace below or flg)
-      dMassSetSphereTotal(&mut *mass, ms.m, ms.r);
+      if fmdm {
+        dMassSetSphereTotal(&mut *mass, ms.dm, ms.r); // dm as m
+      }else{
+        dMassSetSphere(&mut *mass, ms.dm, ms.r);
+      }
       dCreateSphere(space, ms.r)
     },
     MetaId::Box => {
       let mb = mi.as_box();
-      dMassSetBox(&mut *mass, mb.dm, mb.lxyz[0], mb.lxyz[1], mb.lxyz[2]);
-      // dMassSetBoxTotal(&mut *mass, mb.m, mb.lxyz[0], mb.lxyz[1], mb.lxyz[2]); // *** (may remove this line)
+      if fmdm {
+        dMassSetBoxTotal(&mut *mass, mb.dm,
+          mb.lxyz[0], mb.lxyz[1], mb.lxyz[2]); // dm as m
+      }else{
+        dMassSetBox(&mut *mass, mb.dm, mb.lxyz[0], mb.lxyz[1], mb.lxyz[2]);
+      }
       dCreateBox(space, mb.lxyz[0], mb.lxyz[1], mb.lxyz[2])
     },
     MetaId::Capsule => {
@@ -380,7 +389,12 @@ unsafe {
     },
     MetaId::Plane => {
       let mp = mi.as_plane();
-      dMassSetBox(&mut *mass, mp.dm, mp.lxyz[0], mp.lxyz[1], mp.lxyz[2]);
+      if fmdm {
+        dMassSetBoxTotal(&mut *mass, mp.dm,
+          mp.lxyz[0], mp.lxyz[1], mp.lxyz[2]); // dm as m
+      }else{
+        dMassSetBox(&mut *mass, mp.dm, mp.lxyz[0], mp.lxyz[1], mp.lxyz[2]);
+      }
       dCreatePlane(space, mp.norm[0], mp.norm[1], mp.norm[2], mp.norm[3])
     },
     MetaId::Convex => {
@@ -423,6 +437,18 @@ unsafe {
     let obg: Obg = Obg::new(key, body, geom, col);
     self.reg_obg(obg)
   }, geom, mass)
+}
+
+/// create primitive object as m (register it to show on the ODE space world)
+pub fn creator_m(&mut self, key: &str, mi: Box<dyn MetaInf>) ->
+  (dBodyID, dGeomID, Box<dMass>) {
+  self.creator_dm(key, mi, true)
+}
+
+/// create primitive object as dm (register it to show on the ODE space world)
+pub fn creator(&mut self, key: &str, mi: Box<dyn MetaInf>) ->
+  (dBodyID, dGeomID, Box<dMass>) {
+  self.creator_dm(key, mi, false)
 }
 
 /// create composite object (register it to show on the ODE space world)

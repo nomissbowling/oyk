@@ -66,8 +66,8 @@ pub trait MetaInf {
 /// MetaSphere
 #[derive(Clone)]
 pub struct MetaSphere {
-  /// mass
-  pub m: dReal,
+  /// mass density
+  pub dm: dReal,
   /// radius
   pub r: dReal,
   /// bounce
@@ -78,9 +78,9 @@ pub struct MetaSphere {
 
 impl MetaSphere {
   /// construct
-  pub fn new(m: dReal, r: dReal,
+  pub fn new(dm: dReal, r: dReal,
     bounce: dReal, tex: i32, col: dVector4) -> Box<MetaSphere> {
-    Box::new(MetaSphere{m: m, r: r,
+    Box::new(MetaSphere{dm: dm, r: r,
       bounce: bounce, tcm: TCMaterial::new(tex, col)})
   }
 }
@@ -103,7 +103,7 @@ impl MetaInf for MetaSphere {
 /// MetaBox
 #[derive(Clone)]
 pub struct MetaBox {
-  /// dens mass
+  /// mass density
   pub dm: dReal,
   /// lxyz
   pub lxyz: dVector3,
@@ -140,7 +140,7 @@ impl MetaInf for MetaBox {
 /// MetaCapsule
 #[derive(Clone)]
 pub struct MetaCapsule {
-  /// dens mass
+  /// mass density
   pub dm: dReal,
   /// radius
   pub r: dReal,
@@ -179,7 +179,7 @@ impl MetaInf for MetaCapsule {
 /// MetaCylinder
 #[derive(Clone)]
 pub struct MetaCylinder {
-  /// dens mass
+  /// mass density
   pub dm: dReal,
   /// radius
   pub r: dReal,
@@ -218,7 +218,7 @@ impl MetaInf for MetaCylinder {
 /// MetaPlane
 #[derive(Clone)]
 pub struct MetaPlane {
-  /// dens mass
+  /// mass density
   pub dm: dReal,
   /// lxyz
   pub lxyz: dVector3,
@@ -258,10 +258,10 @@ impl MetaInf for MetaPlane {
 pub struct MetaComposite {
   /// elements
   pub elems: Vec<Box<dyn MetaInf>>,
-  /// offsets
-  pub ofs: Vec<dVector3>,
   /// quaternions
   pub qs: Vec<dQuaternion>,
+  /// offsets
+  pub ofs: Vec<dVector3>,
   /// bounce
   pub bounce: dReal,
   /// material
@@ -271,7 +271,7 @@ pub struct MetaComposite {
 impl MetaComposite {
   /// construct
   pub fn new(elems: Vec<Box<dyn MetaInf>>,
-    ofs: Vec<dVector3>, qs: Vec<dQuaternion>,
+    qs: Vec<dQuaternion>, ofs: Vec<dVector3>,
     bounce: dReal, tex: i32, col: dVector4) -> Box<MetaComposite> {
     Box::new(MetaComposite{elems: elems, ofs: ofs, qs: qs,
       bounce: bounce, tcm: TCMaterial::new(tex, col)})
