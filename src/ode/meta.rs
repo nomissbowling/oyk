@@ -41,6 +41,8 @@ macro_rules! meta_panic {
 pub trait MetaInf {
   /// MetaID
   fn id(&self) -> MetaId;
+  /// every struct has bounce
+  fn get_bounce(&self) -> dReal;
   /// every struct has tcm
   fn get_tcm_mut(&mut self) -> &mut TCMaterial;
   /// every struct has tcm
@@ -86,6 +88,8 @@ impl MetaSphere {
 impl MetaInf for MetaSphere {
   /// MetaID
   fn id(&self) -> MetaId { MetaId::Sphere }
+  /// every struct has bounce
+  fn get_bounce(&self) -> dReal { self.bounce }
   /// every struct has tcm
   fn get_tcm_mut(&mut self) -> &mut TCMaterial { &mut self.tcm }
   /// every struct has tcm
@@ -121,6 +125,8 @@ impl MetaBox {
 impl MetaInf for MetaBox {
   /// MetaID
   fn id(&self) -> MetaId { MetaId::Box }
+  /// every struct has bounce
+  fn get_bounce(&self) -> dReal { self.bounce }
   /// every struct has tcm
   fn get_tcm_mut(&mut self) -> &mut TCMaterial { &mut self.tcm }
   /// every struct has tcm
@@ -158,6 +164,8 @@ impl MetaCapsule {
 impl MetaInf for MetaCapsule {
   /// MetaID
   fn id(&self) -> MetaId { MetaId::Capsule }
+  /// every struct has bounce
+  fn get_bounce(&self) -> dReal { self.bounce }
   /// every struct has tcm
   fn get_tcm_mut(&mut self) -> &mut TCMaterial { &mut self.tcm }
   /// every struct has tcm
@@ -195,6 +203,8 @@ impl MetaCylinder {
 impl MetaInf for MetaCylinder {
   /// MetaID
   fn id(&self) -> MetaId { MetaId::Cylinder }
+  /// every struct has bounce
+  fn get_bounce(&self) -> dReal { self.bounce }
   /// every struct has tcm
   fn get_tcm_mut(&mut self) -> &mut TCMaterial { &mut self.tcm }
   /// every struct has tcm
@@ -232,6 +242,8 @@ impl MetaPlane {
 impl MetaInf for MetaPlane {
   /// MetaID
   fn id(&self) -> MetaId { MetaId::Plane }
+  /// every struct has bounce
+  fn get_bounce(&self) -> dReal { self.bounce }
   /// every struct has tcm
   fn get_tcm_mut(&mut self) -> &mut TCMaterial { &mut self.tcm }
   /// every struct has tcm
@@ -269,6 +281,8 @@ impl MetaComposite {
 impl MetaInf for MetaComposite {
   /// MetaID
   fn id(&self) -> MetaId { MetaId::Composite }
+  /// every struct has bounce
+  fn get_bounce(&self) -> dReal { self.bounce }
   /// every struct has tcm
   fn get_tcm_mut(&mut self) -> &mut TCMaterial { &mut self.tcm }
   /// every struct has tcm

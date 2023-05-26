@@ -486,6 +486,14 @@ unsafe {
   (self.reg_obg(obg), geom, mass)
 }
 
+/// search bounce
+pub fn get_bounce(&self, id: dGeomID) -> dReal {
+  match self.get_mgm(id) {
+    Err(_) => 0.9, // or 1.0 ***
+    Ok(mgm) => mgm.get_bounce()
+  }
+}
+
 /// search MetaInf, TCMaterial mut (from HashMap)
 pub fn get_mgm_mut(&mut self, id: dGeomID) ->
   Result<&mut Box<dyn MetaInf>, Box<dyn Error>> {
@@ -812,6 +820,9 @@ unsafe {
 fn near_callback(&mut self, dat: *mut c_void, o1: dGeomID, o2: dGeomID) {
   ostatln!("called default near");
   let gws = &self.gws;
+  let world: dWorldID = gws.world();
+  let contactgroup: dJointGroupID = gws.contactgroup();
+  let ground: dGeomID = gws.ground();
 unsafe {
   if dGeomIsSpace(o1) != 0 || dGeomIsSpace(o2) != 0 {
     dSpaceCollide2(o1, o2, dat, Some(c_near_callback));
@@ -823,20 +834,37 @@ unsafe {
     }
     return;
   }
-  // if !(gws.ground() == o1 || gws.ground() == o2) { return; }
   const num: usize = 40;
   let contacts: &mut Vec<dContact> = &mut vec![dContact::new(); num];
   let sz: i32 = std::mem::size_of::<dContact>() as i32;
   let n: i32 = dCollide(o1, o2, num as i32, &mut contacts[0].geom, sz);
-  for i in 0..n as usize {
-    let p: &mut dContact = &mut contacts[i];
-    p.surface.mu = dInfinity;
-    p.surface.mode = dContactBounce;
-    p.surface.bounce = 0.95; // 0.0
-    p.surface.bounce_vel = 0.0;
-    let c: dJointID = dJointCreateContact(gws.world(), gws.contactgroup(), p);
-    // dJointAttach(c, dGeomGetBody(p.geom.g1), dGeomGetBody(p.geom.g2));
-    dJointAttach(c, dGeomGetBody(o1), dGeomGetBody(o2));
+  if ground == o1 || ground == o2 { // vs ground
+    let id: dGeomID = if ground == o1 { o2 } else { o1 };
+    let bounce: dReal = self.get_bounce(id);
+    for i in 0..n as usize {
+      let p: &mut dContact = &mut contacts[i];
+      p.surface.mode = dContactBounce | dContactSoftERP | dContactSoftCFM;
+      p.surface.bounce = bounce; // or 0.0
+      p.surface.bounce_vel = 0.01; // or 0.0 minimum velocity for bounce
+      p.surface.mu = dInfinity; // or 0.5
+      p.surface.soft_erp = 0.2;
+      p.surface.soft_cfm = 0.001;
+      let c: dJointID = dJointCreateContact(world, contactgroup, p);
+      // dJointAttach(c, dGeomGetBody(p.geom.g1), dGeomGetBody(p.geom.g2));
+      dJointAttach(c, dGeomGetBody(o1), dGeomGetBody(o2));
+    }
+  }else{
+    let bounce: dReal = self.get_bounce(o1) * self.get_bounce(o2);
+    for i in 0..n as usize {
+      let p: &mut dContact = &mut contacts[i];
+      p.surface.mode = dContactBounce;
+      p.surface.bounce = bounce; // or 0.0
+      p.surface.bounce_vel = 0.01; // or 0.0 minimum velocity for bounce
+      p.surface.mu = dInfinity; // or 0.5
+      let c: dJointID = dJointCreateContact(world, contactgroup, p);
+      // dJointAttach(c, dGeomGetBody(p.geom.g1), dGeomGetBody(p.geom.g2));
+      dJointAttach(c, dGeomGetBody(o1), dGeomGetBody(o2));
+    }
   }
 }
 }
