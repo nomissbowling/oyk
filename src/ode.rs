@@ -73,7 +73,11 @@ pub mod prim;
 use prim::*;
 pub use prim::{Matrix4, Matrix3, Quaternion};
 pub use prim::{PId, PI, PIh, PIt, PIq, PIx};
-pub use prim::{PIh3, PIt2, PIt4, PIt5, PIq3};
+pub use prim::{PIh3, PIt2, PIt4, PIt5, PIq3, PIx5};
+
+pub mod krp;
+use krp::*;
+pub use krp::{Krp, KRPnk, KRP100, KRP095, KRP080};
 
 pub mod meta;
 use meta::*;
@@ -516,7 +520,7 @@ unsafe {
 pub fn get_bounce(&self, id: dGeomID) -> dReal {
   match self.get_mgm(id) {
     Err(_) => 0.9, // or 1.0 ***
-    Ok(mgm) => mgm.get_bounce()
+    Ok(mgm) => mgm.get_krp().bounce
   }
 }
 
@@ -901,11 +905,27 @@ fn step_callback(&mut self, pause: i32) {
   let gws = &self.gws;
   let t_delta = &self.t_delta;
   if pause != 1 {
+    let mut tmp: HashMap<dGeomID, dVector3> = vec![].into_iter().collect();
+    for (id, mi) in &self.mgms {
+      if !mi.get_krp().k {
+unsafe {
+        let b: dBodyID = dGeomGetBody(*id);
+        let p: *const dReal = dBodyGetPosition(b);
+        tmp.entry(*id).or_insert(*(p as *const dVector3));
+}
+      }
+    }
 unsafe {
     dSpaceCollide(gws.space(), 0 as *mut c_void, Some(c_near_callback));
     dWorldStep(gws.world(), *t_delta);
     dJointGroupEmpty(gws.contactgroup());
 }
+    for (id, p) in &tmp {
+unsafe {
+      let b: dBodyID = dGeomGetBody(*id);
+      dBodySetPosition(b, p[0], p[1], p[2]);
+}
+    }
   }
   ode_sim!(self, draw_objects)
 }

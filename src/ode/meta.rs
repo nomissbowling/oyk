@@ -3,6 +3,7 @@
 
 use crate::ode::*;
 use crate::ode::cls::*;
+use crate::ode::krp::*;
 
 /// id for trait MetaInf
 #[derive(Debug)]
@@ -41,8 +42,8 @@ macro_rules! meta_panic {
 pub trait MetaInf {
   /// MetaID
   fn id(&self) -> MetaId;
-  /// every struct has bounce
-  fn get_bounce(&self) -> dReal;
+  /// every struct has krp
+  fn get_krp(&self) -> &Krp;
   /// every struct has tcm
   fn get_tcm_mut(&mut self) -> &mut TCMaterial;
   /// every struct has tcm
@@ -70,8 +71,8 @@ pub struct MetaSphere {
   pub dm: dReal,
   /// radius
   pub r: dReal,
-  /// bounce
-  pub bounce: dReal,
+  /// krp
+  pub krp: Krp,
   /// material
   pub tcm: TCMaterial
 }
@@ -79,17 +80,17 @@ pub struct MetaSphere {
 impl MetaSphere {
   /// construct
   pub fn new(dm: dReal, r: dReal,
-    bounce: dReal, tex: i32, col: dVector4) -> Box<MetaSphere> {
+    krp: Krp, tex: i32, col: dVector4) -> Box<MetaSphere> {
     Box::new(MetaSphere{dm: dm, r: r,
-      bounce: bounce, tcm: TCMaterial::new(tex, col)})
+      krp: krp, tcm: TCMaterial::new(tex, col)})
   }
 }
 
 impl MetaInf for MetaSphere {
   /// MetaID
   fn id(&self) -> MetaId { MetaId::Sphere }
-  /// every struct has bounce
-  fn get_bounce(&self) -> dReal { self.bounce }
+  /// every struct has krp
+  fn get_krp(&self) -> &Krp { &self.krp }
   /// every struct has tcm
   fn get_tcm_mut(&mut self) -> &mut TCMaterial { &mut self.tcm }
   /// every struct has tcm
@@ -107,8 +108,8 @@ pub struct MetaBox {
   pub dm: dReal,
   /// lxyz
   pub lxyz: dVector3,
-  /// bounce
-  pub bounce: dReal,
+  /// krp
+  pub krp: Krp,
   /// material
   pub tcm: TCMaterial
 }
@@ -116,17 +117,17 @@ pub struct MetaBox {
 impl MetaBox {
   /// construct
   pub fn new(dm: dReal, lxyz: dVector3,
-    bounce: dReal, tex: i32, col: dVector4) -> Box<MetaBox> {
+    krp: Krp, tex: i32, col: dVector4) -> Box<MetaBox> {
     Box::new(MetaBox{dm: dm, lxyz: lxyz,
-      bounce: bounce, tcm: TCMaterial::new(tex, col)})
+      krp: krp, tcm: TCMaterial::new(tex, col)})
   }
 }
 
 impl MetaInf for MetaBox {
   /// MetaID
   fn id(&self) -> MetaId { MetaId::Box }
-  /// every struct has bounce
-  fn get_bounce(&self) -> dReal { self.bounce }
+  /// every struct has krp
+  fn get_krp(&self) -> &Krp { &self.krp }
   /// every struct has tcm
   fn get_tcm_mut(&mut self) -> &mut TCMaterial { &mut self.tcm }
   /// every struct has tcm
@@ -146,8 +147,8 @@ pub struct MetaCapsule {
   pub r: dReal,
   /// length
   pub l: dReal,
-  /// bounce
-  pub bounce: dReal,
+  /// krp
+  pub krp: Krp,
   /// material
   pub tcm: TCMaterial
 }
@@ -155,17 +156,17 @@ pub struct MetaCapsule {
 impl MetaCapsule {
   /// construct
   pub fn new(dm: dReal, r: dReal, l: dReal,
-    bounce: dReal, tex: i32, col: dVector4) -> Box<MetaCapsule> {
+    krp: Krp, tex: i32, col: dVector4) -> Box<MetaCapsule> {
     Box::new(MetaCapsule{dm: dm, r: r, l: l,
-      bounce: bounce, tcm: TCMaterial::new(tex, col)})
+      krp: krp, tcm: TCMaterial::new(tex, col)})
   }
 }
 
 impl MetaInf for MetaCapsule {
   /// MetaID
   fn id(&self) -> MetaId { MetaId::Capsule }
-  /// every struct has bounce
-  fn get_bounce(&self) -> dReal { self.bounce }
+  /// every struct has krp
+  fn get_krp(&self) -> &Krp { &self.krp }
   /// every struct has tcm
   fn get_tcm_mut(&mut self) -> &mut TCMaterial { &mut self.tcm }
   /// every struct has tcm
@@ -185,8 +186,8 @@ pub struct MetaCylinder {
   pub r: dReal,
   /// length
   pub l: dReal,
-  /// bounce
-  pub bounce: dReal,
+  /// krp
+  pub krp: Krp,
   /// material
   pub tcm: TCMaterial
 }
@@ -194,17 +195,17 @@ pub struct MetaCylinder {
 impl MetaCylinder {
   /// construct
   pub fn new(dm: dReal, r: dReal, l: dReal,
-    bounce: dReal, tex: i32, col: dVector4) -> Box<MetaCylinder> {
+    krp: Krp, tex: i32, col: dVector4) -> Box<MetaCylinder> {
     Box::new(MetaCylinder{dm: dm, r: r, l: l,
-      bounce: bounce, tcm: TCMaterial::new(tex, col)})
+      krp: krp, tcm: TCMaterial::new(tex, col)})
   }
 }
 
 impl MetaInf for MetaCylinder {
   /// MetaID
   fn id(&self) -> MetaId { MetaId::Cylinder }
-  /// every struct has bounce
-  fn get_bounce(&self) -> dReal { self.bounce }
+  /// every struct has krp
+  fn get_krp(&self) -> &Krp { &self.krp }
   /// every struct has tcm
   fn get_tcm_mut(&mut self) -> &mut TCMaterial { &mut self.tcm }
   /// every struct has tcm
@@ -224,8 +225,8 @@ pub struct MetaPlane {
   pub lxyz: dVector3,
   /// norm
   pub norm: dVector4,
-  /// bounce
-  pub bounce: dReal,
+  /// krp
+  pub krp: Krp,
   /// material
   pub tcm: TCMaterial
 }
@@ -233,17 +234,17 @@ pub struct MetaPlane {
 impl MetaPlane {
   /// construct
   pub fn new(dm: dReal, lxyz: dVector3, norm: dVector4,
-    bounce: dReal, tex: i32, col: dVector4) -> Box<MetaPlane> {
+    krp: Krp, tex: i32, col: dVector4) -> Box<MetaPlane> {
     Box::new(MetaPlane{dm: dm, lxyz: lxyz, norm: norm,
-      bounce: bounce, tcm: TCMaterial::new(tex, col)})
+      krp: krp, tcm: TCMaterial::new(tex, col)})
   }
 }
 
 impl MetaInf for MetaPlane {
   /// MetaID
   fn id(&self) -> MetaId { MetaId::Plane }
-  /// every struct has bounce
-  fn get_bounce(&self) -> dReal { self.bounce }
+  /// every struct has krp
+  fn get_krp(&self) -> &Krp { &self.krp }
   /// every struct has tcm
   fn get_tcm_mut(&mut self) -> &mut TCMaterial { &mut self.tcm }
   /// every struct has tcm
@@ -262,8 +263,8 @@ pub struct MetaComposite {
   pub qs: Vec<dQuaternion>,
   /// offsets
   pub ofs: Vec<dVector3>,
-  /// bounce
-  pub bounce: dReal,
+  /// krp
+  pub krp: Krp,
   /// material
   pub tcm: TCMaterial
 }
@@ -272,17 +273,17 @@ impl MetaComposite {
   /// construct
   pub fn new(elems: Vec<Box<dyn MetaInf>>,
     qs: Vec<dQuaternion>, ofs: Vec<dVector3>,
-    bounce: dReal, tex: i32, col: dVector4) -> Box<MetaComposite> {
+    krp: Krp, tex: i32, col: dVector4) -> Box<MetaComposite> {
     Box::new(MetaComposite{elems: elems, ofs: ofs, qs: qs,
-      bounce: bounce, tcm: TCMaterial::new(tex, col)})
+      krp: krp, tcm: TCMaterial::new(tex, col)})
   }
 }
 
 impl MetaInf for MetaComposite {
   /// MetaID
   fn id(&self) -> MetaId { MetaId::Composite }
-  /// every struct has bounce
-  fn get_bounce(&self) -> dReal { self.bounce }
+  /// every struct has krp
+  fn get_krp(&self) -> &Krp { &self.krp }
   /// every struct has tcm
   fn get_tcm_mut(&mut self) -> &mut TCMaterial { &mut self.tcm }
   /// every struct has tcm

@@ -55,21 +55,34 @@ pub fn new() -> dContact {
 
 }
 
-/// angles
-pub static PI: dReal = 3.14159265; // 180
-pub static PId: dReal = PI * 2.0; // 360 dual
-pub static PIh: dReal = PI / 2.0; // 90 half
-pub static PIt: dReal = PI / 3.0; // 60 regular triangle
-pub static PIq: dReal = PI / 4.0; // 45 quarter
-pub static PIx: dReal = PI / 6.0; // 30 a sixth
+/// static angle 180
+pub static PI: dReal = 3.14159265;
+/// static angle 360 dual
+pub static PId: dReal = PI * 2.0;
+/// static angle 90 half
+pub static PIh: dReal = PI / 2.0;
+/// static angle 60 regular triangle
+pub static PIt: dReal = PI / 3.0;
+/// static angle 45 quarter
+pub static PIq: dReal = PI / 4.0;
+/// static angle 30 a sixth
+pub static PIx: dReal = PI / 6.0;
 
-pub static PIh3: dReal = PIh * 3.0; // 270
+/// static angle 270
+pub static PIh3: dReal = PIh * 3.0;
 
-pub static PIt2: dReal = PIt * 2.0; // 120
-pub static PIt4: dReal = PIt * 4.0; // 240
-pub static PIt5: dReal = PIt * 5.0; // 300
+/// static angle 120
+pub static PIt2: dReal = PIt * 2.0;
+/// static angle 240
+pub static PIt4: dReal = PIt * 4.0;
+/// static angle 300
+pub static PIt5: dReal = PIt * 5.0;
 
-pub static PIq3: dReal = PIq * 3.0; // 135
+/// static angle 135
+pub static PIq3: dReal = PIq * 3.0;
+
+/// static angle 150
+pub static PIx5: dReal = PIx * 5.0;
 
 /// constructor and converter for primitive type
 pub trait Quaternion {
