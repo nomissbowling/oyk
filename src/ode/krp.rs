@@ -24,10 +24,12 @@ impl Krp {
 }
 
 /// static krp n k
-pub static KRPnk: Krp = Krp{k: false, g: false, c: false, bounce: 0.0};
+pub static KRPnk: Krp = Krp{k: false, g: false, c: false, bounce: 0.0001};
 /// static krp 1.0
 pub static KRP100: Krp = Krp{k: true, g: true, c: true, bounce: 1.0};
 /// static krp 0.95
 pub static KRP095: Krp = Krp{k: true, g: true, c: true, bounce: 0.95};
 /// static krp 0.8
 pub static KRP080: Krp = Krp{k: true, g: true, c: true, bounce: 0.8};
+/// static krp 0.01
+pub static KRP001: Krp = Krp{k: true, g: true, c: true, bounce: 0.01};

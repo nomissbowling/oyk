@@ -84,6 +84,22 @@ pub static PIq3: dReal = PIq * 3.0;
 /// static angle 150
 pub static PIx5: dReal = PIx * 5.0;
 
+/// static dMatrix4 Identity
+pub static M4I: dMatrix4 = [
+  1.0, 0.0, 0.0, 0.0,
+  0.0, 1.0, 0.0, 0.0,
+  0.0, 0.0, 1.0, 0.0,
+  0.0, 0.0, 0.0, 1.0];
+
+/// static dMatrix3 Identity
+pub static M3I: dMatrix3 = [
+  1.0, 0.0, 0.0, 0.0,
+  0.0, 1.0, 0.0, 0.0,
+  0.0, 0.0, 1.0, 0.0];
+
+/// static dQuaternion Identity
+pub static QI: dQuaternion = [1.0, 0.0, 0.0, 0.0];
+
 /// constructor and converter for primitive type
 pub trait Quaternion {
   /// ptr mut of dQuaternion

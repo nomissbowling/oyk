@@ -71,13 +71,13 @@ use mat::*;
 
 pub mod prim;
 use prim::*;
-pub use prim::{Matrix4, Matrix3, Quaternion};
+pub use prim::{Matrix4, M4I, Matrix3, M3I, Quaternion, QI};
 pub use prim::{PId, PI, PIh, PIt, PIq, PIx};
 pub use prim::{PIh3, PIt2, PIt4, PIt5, PIq3, PIx5};
 
 pub mod krp;
 use krp::*;
-pub use krp::{Krp, KRPnk, KRP100, KRP095, KRP080};
+pub use krp::{Krp, KRPnk, KRP100, KRP095, KRP080, KRP001};
 
 pub mod meta;
 use meta::*;
@@ -114,6 +114,7 @@ pub struct ODE { // unsafe
   sw_viewpoint: usize, // switch viewpoint
   /// viewpoint(s)
   pub cams: BTreeMap<usize, Cam>,
+  rgts: HashMap<dGeomID, dGeomID>, // reverse geom gtrans dGeomGetGeomTransform
   mgms: HashMap<dGeomID, Box<dyn MetaInf>>, // metainf(s) material(s) mapped
   obgs: HashMap<dBodyID, Obg>, // object(s) mapped (obg has key: String)
   mbgs: BTreeMap<String, dBodyID>, // object id(s) ordered mapped (key: cloned)
@@ -226,7 +227,7 @@ pub fn new(delta: dReal) -> ODE {
       Cam::new(vec![10.0, 10.0, 5.0], vec![-150.0, 0.0, 3.0]),
       Cam::new(vec![-20.0, -20.0, 10.0], vec![45.0, -15.0, 0.0])
     ].into_iter().enumerate().collect(), // to BTreeMap<usize, Cam>
-    mgms: vec![].into_iter().collect(),
+    rgts: vec![].into_iter().collect(), mgms: vec![].into_iter().collect(),
     obgs: vec![].into_iter().collect(), mbgs: vec![].into_iter().collect(),
     vbgs: vec![].try_into().unwrap_or_else(|o: std::convert::Infallible|
       panic!("Expected VecDeque<dBodyID> from vec![] Infallible ({:?})", o)),
@@ -491,8 +492,9 @@ unsafe {
         dGeomSetQuaternion(gsub, q.as_ptr() as *mut dReal);
         dMassRotate(&mut *subm, dMatrix3::from_Q(*q).as_ptr() as *mut dReal);
         dMassAdd(&mut *mass, &*subm);
+        self.rgts.entry(gsub).or_insert(gtrans); // reverse geom gtrans
       }
-      0 as dGeomID // space
+      0 as dGeomID // composite Obg has no geom
 }
     },
     _ => { panic!("use creator for {:?}", mi.id()); }
@@ -516,11 +518,35 @@ unsafe {
   (self.reg_obg(obg), geom, mass)
 }
 
-/// search bounce
+/// search grand parent body
+pub fn get_grand_parent(&self, id: dGeomID) -> dBodyID {
+unsafe {
+  let mut b: dBodyID = dGeomGetBody(id);
+  if b == 0 as dBodyID { // assume sub geom in the GeomTransform
+    b = dGeomGetBody(self.rgts[&id]); // reverse geom gtrans (no care or_else)
+  }
+  b
+}
+}
+
+/// search bounce (especially support GeomTransform)
 pub fn get_bounce(&self, id: dGeomID) -> dReal {
-  match self.get_mgm(id) {
-    Err(_) => 0.9, // or 1.0 ***
+  let gid: dGeomID = match unsafe { dGeomGetClass(id) } {
+    dGeomTransformClass => unsafe { dGeomTransformGetGeom(id) },
+    _ => id
+  }; // GeomTransform is never registered
+  match self.get_mgm(gid) {
+    Err(_) => KRP100.bounce, // will not be arrived here (check class before)
     Ok(mgm) => mgm.get_krp().bounce
+  }
+}
+
+/// search Krp (from HashMap)
+pub fn get_krp(&self, id: dGeomID) -> &Krp {
+  // self.get_mgm(id).unwrap().get_krp() // no care or_else
+  match self.get_mgm(id) {
+    Err(_) => &KRP100, // or raise panic!
+    Ok(mgm) => mgm.get_krp()
   }
 }
 
@@ -621,6 +647,8 @@ unsafe {
   vbgs.clear();
   let mgms: &mut HashMap<dGeomID, Box<dyn MetaInf>> = &mut ode_get_mut!(mgms);
   mgms.clear();
+  let rgts: &mut HashMap<dGeomID, dGeomID> = &mut ode_get_mut!(rgts);
+  rgts.clear();
   let rode: &mut ODE = &mut ode_mut!();
   rode.modify();
 }
@@ -813,7 +841,7 @@ unsafe {
     dConvexClass => {
       println!("not implemented class: {}", cls);
     },
-    dGeomTransferClass => {
+    dGeomTransformClass => {
       let gt: dGeomID = dGeomTransformGetGeom(geom);
       let gtpos: *const dReal = dGeomGetPosition(gt);
       let gtrot: *const dReal = dGeomGetRotation(gt);
@@ -909,7 +937,7 @@ fn step_callback(&mut self, pause: i32) {
     for (id, mi) in &self.mgms {
       if !mi.get_krp().k {
 unsafe {
-        let b: dBodyID = dGeomGetBody(*id);
+        let b: dBodyID = self.get_grand_parent(*id);
         let p: *const dReal = dBodyGetPosition(b);
         tmp.entry(*id).or_insert(*(p as *const dVector3));
 }
@@ -922,7 +950,7 @@ unsafe {
 }
     for (id, p) in &tmp {
 unsafe {
-      let b: dBodyID = dGeomGetBody(*id);
+      let b: dBodyID = self.get_grand_parent(*id);
       dBodySetPosition(b, p[0], p[1], p[2]);
 }
     }
