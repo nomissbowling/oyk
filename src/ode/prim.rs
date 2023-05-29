@@ -135,6 +135,8 @@ unsafe {
   }
 
   /// constructor
+  /// axis [x, y, z] should be norm == 1, angle is theta radian
+  /// Q(axis, angle) == [cos(t/2), xsin(t/2), ysin(t/2), zsin(t/2)]
   fn from_axis_and_angle(axis: [dReal; 3], angle: dReal) -> dQuaternion {
     let mut q: dQuaternion = [0.0; 4];
 unsafe {
