@@ -8,6 +8,9 @@
 #include <vector>
 #include <map>
 
+#include <cstring>
+#include <cmath>
+
 using namespace std;
 
 #include <bridge.hpp>
