@@ -44,6 +44,7 @@ mod cppbridge;
 use cppbridge::*;
 pub use cppbridge::{Bridge, bput};
 pub use cppbridge::{dMULTIPLY0_331, dMULTIPLY0_333};
+pub use cppbridge::{convexfvp, trimeshvi};
 
 mod cdrawstuff;
 use cdrawstuff::*;
@@ -79,13 +80,23 @@ pub mod krp;
 use krp::*;
 pub use krp::{Krp, KRPnk, KRP100, KRP095, KRP080, KRP001};
 
+pub mod trimeshconvex;
+use trimeshconvex::*;
+pub use trimeshconvex::{TriMesh, Convex};
+pub use trimeshconvex::trimesh_tetra::{tmv_tetra, fvp_tetra};
+pub use trimeshconvex::trimesh_cube::{tmv_cube, fvp_cube};
+pub use trimeshconvex::trimesh_icosahedron::{tmv_icosahedron, fvp_icosahedron};
+pub use trimeshconvex::trimesh_bunny::{tmv_bunny, fvp_bunny};
+pub use trimeshconvex::trimesh_custom::{tmv_custom, fvp_custom};
+
 pub mod meta;
 use meta::*;
-pub use meta::{MetaInf, MetaComposite};
+pub use meta::{MetaInf, MetaConvex, MetaTriMesh, MetaComposite};
 pub use meta::{MetaSphere, MetaBox, MetaCapsule, MetaCylinder, MetaPlane};
 
 pub mod cls;
 use cls::*;
+pub use cls::{AsPtr};
 
 use std::collections::hash_map::Entry;
 use std::collections::HashMap; // with #[derive(PartialEq, Eq, Hash)] struct

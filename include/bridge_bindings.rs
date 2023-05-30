@@ -85,8 +85,10 @@ extern "C" {
     #[doc = " legacy C interface"]
     pub fn bput();
 }
-#[doc = " adhoc C macro and static __inline functions"]
+#[doc = " dReal as f64 (defined in ode.hpp)"]
 pub type dReal = f64;
+#[doc = " dTriIndex as u32 (defined in ode.hpp)"]
+pub type dTriIndex = ::std::os::raw::c_uint;
 extern "C" {
     #[doc = " res = a(&dMatrix3) b(&dVector3)"]
     pub fn dMULTIPLY0_331(res: *mut dReal, a: *const dReal, b: *const dReal);
@@ -94,4 +96,196 @@ extern "C" {
 extern "C" {
     #[doc = " res = a(&dMatrix3) b(&dMatrix3)"]
     pub fn dMULTIPLY0_333(res: *mut dReal, a: *const dReal, b: *const dReal);
+}
+#[doc = " TriMeshVI"]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct trimeshvi {
+    #[doc = " number of vertices"]
+    pub vtxCount: ::std::os::raw::c_uint,
+    #[doc = " vertices"]
+    pub vtx: *mut dReal,
+    #[doc = " indices"]
+    pub indices: *mut dTriIndex,
+    #[doc = " number of indices (all dTriIndex elements)"]
+    pub indexCount: ::std::os::raw::c_uint,
+}
+#[test]
+fn bindgen_test_layout_trimeshvi() {
+    const UNINIT: ::std::mem::MaybeUninit<trimeshvi> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<trimeshvi>(),
+        32usize,
+        concat!("Size of: ", stringify!(trimeshvi))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<trimeshvi>(),
+        8usize,
+        concat!("Alignment of ", stringify!(trimeshvi))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).vtxCount) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(trimeshvi),
+            "::",
+            stringify!(vtxCount)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).vtx) as usize - ptr as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(trimeshvi),
+            "::",
+            stringify!(vtx)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).indices) as usize - ptr as usize },
+        16usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(trimeshvi),
+            "::",
+            stringify!(indices)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).indexCount) as usize - ptr as usize },
+        24usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(trimeshvi),
+            "::",
+            stringify!(indexCount)
+        )
+    );
+}
+#[doc = " ConvexFVP"]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct convexfvp {
+    #[doc = " number of planes"]
+    pub faceCount: ::std::os::raw::c_uint,
+    #[doc = " planes"]
+    pub faces: *mut dReal,
+    #[doc = " number of vertices"]
+    pub vtxCount: ::std::os::raw::c_uint,
+    #[doc = " vertices"]
+    pub vtx: *mut dReal,
+    #[doc = " polygons"]
+    pub polygons: *mut ::std::os::raw::c_uint,
+}
+#[test]
+fn bindgen_test_layout_convexfvp() {
+    const UNINIT: ::std::mem::MaybeUninit<convexfvp> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<convexfvp>(),
+        40usize,
+        concat!("Size of: ", stringify!(convexfvp))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<convexfvp>(),
+        8usize,
+        concat!("Alignment of ", stringify!(convexfvp))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).faceCount) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(convexfvp),
+            "::",
+            stringify!(faceCount)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).faces) as usize - ptr as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(convexfvp),
+            "::",
+            stringify!(faces)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).vtxCount) as usize - ptr as usize },
+        16usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(convexfvp),
+            "::",
+            stringify!(vtxCount)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).vtx) as usize - ptr as usize },
+        24usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(convexfvp),
+            "::",
+            stringify!(vtx)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).polygons) as usize - ptr as usize },
+        32usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(convexfvp),
+            "::",
+            stringify!(polygons)
+        )
+    );
+}
+extern "C" {
+    #[doc = " (defined in ode.hpp)"]
+    pub fn dDot(a: *const dReal, b: *const dReal, n: ::std::os::raw::c_int) -> dReal;
+}
+extern "C" {
+    #[doc = " set static in cpp"]
+    pub fn SetScaleLimit(sclim: dReal);
+}
+extern "C" {
+    #[doc = " c[3] = a[3] x b[3] same as void dCROSS(c, =, a, b);"]
+    pub fn Cross3(c: *mut dReal, a: *mut dReal, b: *mut dReal);
+}
+extern "C" {
+    #[doc = " n[4] = normal(v[9])"]
+    pub fn Normal4(n: *mut dReal, v: *mut dReal);
+}
+extern "C" {
+    #[doc = " recalc triangle convexfvp (set normal of faces)"]
+    pub fn RecalcFaces(fvp: *mut convexfvp);
+}
+extern "C" {
+    pub fn FreeTriMeshVI(tmv: *mut trimeshvi);
+}
+extern "C" {
+    pub fn FreeConvexFVP(fvp: *mut convexfvp);
+}
+extern "C" {
+    pub fn CvtTriMeshVIFromConvexFVP(fvp: *mut convexfvp, sc: dReal) -> *mut trimeshvi;
+}
+extern "C" {
+    pub fn CvtConvexFVPFromTriMeshVI(tmv: *mut trimeshvi, sc: dReal) -> *mut convexfvp;
+}
+extern "C" {
+    pub fn ScaleTriMeshVI(tmv: *mut trimeshvi, sc: dReal) -> *mut trimeshvi;
+}
+extern "C" {
+    pub fn CopyTriMeshVI(dst: *mut trimeshvi, src: *mut trimeshvi, sc: dReal) -> *mut trimeshvi;
+}
+extern "C" {
+    pub fn ScaleConvexFVP(fvp: *mut convexfvp, sc: dReal) -> *mut convexfvp;
+}
+extern "C" {
+    pub fn CopyConvexFVP(dst: *mut convexfvp, src: *mut convexfvp, sc: dReal) -> *mut convexfvp;
 }

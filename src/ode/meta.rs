@@ -58,6 +58,10 @@ pub trait MetaInf {
   fn as_cylinder(&self) -> &MetaCylinder { meta_panic!(self, "Cylinder"); }
   /// as MetaPlane
   fn as_plane(&self) -> &MetaPlane { meta_panic!(self, "Plane"); }
+  /// as MetaConvex
+  fn as_convex(&self) -> &MetaConvex { meta_panic!(self, "Convex"); }
+  /// as MetaTriMesh
+  fn as_trimesh(&self) -> &MetaTriMesh { meta_panic!(self, "TriMesh"); }
   /// as MetaComposite
   fn as_composite(&self) -> &MetaComposite { meta_panic!(self, "Composite"); }
   /// clone MetaInf
@@ -251,6 +255,80 @@ impl MetaInf for MetaPlane {
   fn get_tcm(&self) -> &TCMaterial { &self.tcm }
   /// as MetaPlane
   fn as_plane(&self) -> &MetaPlane { self }
+  /// clone MetaInf
+  fn dup(&self) -> Box<dyn MetaInf> { Box::new(self.clone()) }
+}
+
+/// MetaConvex
+#[derive(Clone)]
+pub struct MetaConvex {
+  /// mass density
+  pub dm: dReal,
+  /// convexfvp *** CAUTION how to clone ***
+  pub fvp: *mut convexfvp,
+  /// krp
+  pub krp: Krp,
+  /// material
+  pub tcm: TCMaterial
+}
+
+impl MetaConvex {
+  /// construct
+  pub fn new(dm: dReal, fvp: *mut convexfvp,
+    krp: Krp, tex: i32, col: dVector4) -> Box<MetaConvex> {
+    Box::new(MetaConvex{dm: dm, fvp: fvp,
+      krp: krp, tcm: TCMaterial::new(tex, col)})
+  }
+}
+
+impl MetaInf for MetaConvex {
+  /// MetaID
+  fn id(&self) -> MetaId { MetaId::Convex }
+  /// every struct has krp
+  fn get_krp(&self) -> &Krp { &self.krp }
+  /// every struct has tcm
+  fn get_tcm_mut(&mut self) -> &mut TCMaterial { &mut self.tcm }
+  /// every struct has tcm
+  fn get_tcm(&self) -> &TCMaterial { &self.tcm }
+  /// as MetaConvex
+  fn as_convex(&self) -> &MetaConvex { self }
+  /// clone MetaInf
+  fn dup(&self) -> Box<dyn MetaInf> { Box::new(self.clone()) }
+}
+
+/// MetaTriMesh
+#[derive(Clone)]
+pub struct MetaTriMesh {
+  /// mass density
+  pub dm: dReal,
+  /// trimeshvi *** CAUTION how to clone ***
+  pub tmv: *mut trimeshvi,
+  /// krp
+  pub krp: Krp,
+  /// material
+  pub tcm: TCMaterial
+}
+
+impl MetaTriMesh {
+  /// construct
+  pub fn new(dm: dReal, tmv: *mut trimeshvi,
+    krp: Krp, tex: i32, col: dVector4) -> Box<MetaTriMesh> {
+    Box::new(MetaTriMesh{dm: dm, tmv: tmv,
+      krp: krp, tcm: TCMaterial::new(tex, col)})
+  }
+}
+
+impl MetaInf for MetaTriMesh {
+  /// MetaID
+  fn id(&self) -> MetaId { MetaId::TriMesh }
+  /// every struct has krp
+  fn get_krp(&self) -> &Krp { &self.krp }
+  /// every struct has tcm
+  fn get_tcm_mut(&mut self) -> &mut TCMaterial { &mut self.tcm }
+  /// every struct has tcm
+  fn get_tcm(&self) -> &TCMaterial { &self.tcm }
+  /// as MetaTriMesh
+  fn as_trimesh(&self) -> &MetaTriMesh { self }
   /// clone MetaInf
   fn dup(&self) -> Box<dyn MetaInf> { Box::new(self.clone()) }
 }

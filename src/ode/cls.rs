@@ -234,6 +234,21 @@ pub struct GeomOffset<'a> {
   pub o: &'a dVector3
 }
 
+/// use for Vec<T>
+pub trait AsPtr<T> {
+  /// &amp;mut self[0] as *mut T
+  fn as_ptr_mut(&mut self) -> *mut T;
+  /// &amp;self[0] as *const T
+  fn as_ptr(&self) -> *const T;
+}
+
+impl<T> AsPtr<T> for Vec<T> {
+  /// &amp;mut self[0] as *mut T
+  fn as_ptr_mut(&mut self) -> *mut T { &mut self[0] as *mut T }
+  /// &amp;self[0] as *const T
+  fn as_ptr(&self) -> *const T { &self[0] as *const T }
+}
+
 /// material(s) of ODE, tcms: HashMap&lt;dGeomID, TCMaterial&gt;
 #[derive(Clone)]
 pub struct TCMaterial {
