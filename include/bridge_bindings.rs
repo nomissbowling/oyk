@@ -266,26 +266,34 @@ extern "C" {
     pub fn RecalcFaces(fvp: *mut convexfvp);
 }
 extern "C" {
-    pub fn FreeTriMeshVI(tmv: *mut trimeshvi);
+    #[doc = " delete vtx, indices when ff is true"]
+    pub fn FreeTriMeshVI(tmv: *mut trimeshvi, ff: bool);
 }
 extern "C" {
-    pub fn FreeConvexFVP(fvp: *mut convexfvp);
+    #[doc = " delete faces, vtx, polygons when ff is true"]
+    pub fn FreeConvexFVP(fvp: *mut convexfvp, ff: bool);
 }
 extern "C" {
+    #[doc = " always new trimeshvi rescale and return it"]
     pub fn CvtTriMeshVIFromConvexFVP(fvp: *mut convexfvp, sc: dReal) -> *mut trimeshvi;
 }
 extern "C" {
+    #[doc = " always new convexfvp rescale and return it"]
     pub fn CvtConvexFVPFromTriMeshVI(tmv: *mut trimeshvi, sc: dReal) -> *mut convexfvp;
 }
 extern "C" {
+    #[doc = " overwrite trimeshvi rescale and return it"]
     pub fn ScaleTriMeshVI(tmv: *mut trimeshvi, sc: dReal) -> *mut trimeshvi;
 }
 extern "C" {
+    #[doc = " (dst is NULL: new, !NULL: overwrite) trimeshvi rescale and return it"]
     pub fn CopyTriMeshVI(dst: *mut trimeshvi, src: *mut trimeshvi, sc: dReal) -> *mut trimeshvi;
 }
 extern "C" {
+    #[doc = " overwrite convexfvp rescale and return it"]
     pub fn ScaleConvexFVP(fvp: *mut convexfvp, sc: dReal) -> *mut convexfvp;
 }
 extern "C" {
+    #[doc = " (dst is NULL: new, !NULL: overwrite) convexfvp rescale and return it"]
     pub fn CopyConvexFVP(dst: *mut convexfvp, src: *mut convexfvp, sc: dReal) -> *mut convexfvp;
 }

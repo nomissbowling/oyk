@@ -25,7 +25,7 @@ static mut PLANES: Lazy<Vec<dReal>> = Lazy::new(|| vec![ // 6 * 4
   0.0, 0.0, 1.0, 0.25,
   0.0, 0.0, -1.0, 0.25,
   0.0, -1.0, 0.0, 0.25,
-  -1.0, 0.0, 0.0, 0.25]);
+  -1.0, 0.0, 0.0, 0.25]); // reset by RecalcFaces()
 /*
 static mut PLANES: Lazy<Vec<dReal>> = Lazy::new(|| vec![ // 6 * 4
   1.0, 0.0, 0.0, 2.0,

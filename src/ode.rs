@@ -45,13 +45,14 @@ use cppbridge::*;
 pub use cppbridge::{Bridge, bput};
 pub use cppbridge::{dMULTIPLY0_331, dMULTIPLY0_333};
 pub use cppbridge::{convexfvp, trimeshvi};
+// pub use cppbridge::{RecalcFaces, Normal4, Cross3};
 
 mod cdrawstuff;
 use cdrawstuff::*;
 
 mod cppode;
 use cppode::*;
-pub use cppode::{dBodyID, dGeomID};
+pub use cppode::{dBodyID, dGeomID, dTriIndex};
 pub use cppode::{dMatrix4, dMatrix3, dVector4, dVector3, dReal}; // 16 12 4 4
 pub use cppode::{dQuaternion};
 
@@ -414,26 +415,20 @@ unsafe {
       dCreatePlane(space, mp.norm[0], mp.norm[1], mp.norm[2], mp.norm[3])
     },
     MetaId::Convex => {
-      panic!("TODO: creator not implemented for {:?}", mi.id());
-/*
       let mc = mi.as_convex();
-      let g: dGeomID = CreateGeomConvexFromFVP(0, mc.v as *mut convexfvp);
-      _MassSetConvexAsTrimesh(&mut *mass, mc.dm, g);
+      let g: dGeomID = CreateGeomConvexFromFVP(space, mc.fvp);
+      MassSetConvexAsTrimesh(&mut *mass, mc.dm, mc.fvp);
       dGeomSetPosition(g, -mass.c[0], -mass.c[1], -mass.c[2]); // ***
       dMassTranslate(&mut *mass, -mass.c[0], -mass.c[1], -mass.c[2]); // ***
       g
-*/
     },
     MetaId::TriMesh => {
-      panic!("TODO: creator not implemented for {:?}", mi.id());
-/*
       let mt = mi.as_trimesh();
-      let g: dGeomID = CreateGeomTrimeshFromVI(0, mt.v as *mut trimeshvi);
+      let g: dGeomID = CreateGeomTrimeshFromVI(space, mt.tmv);
       dMassSetTrimesh(&mut *mass, mt.dm, g);
       dGeomSetPosition(g, -mass.c[0], -mass.c[1], -mass.c[2]); // ***
       dMassTranslate(&mut *mass, -mass.c[0], -mass.c[1], -mass.c[2]); // ***
       g
-*/
     },
     MetaId::Composite => {
       panic!("use creator_composite for {:?}", mi.id());
@@ -850,7 +845,14 @@ unsafe {
       println!("not implemented class: {}", cls);
     },
     dConvexClass => {
-      println!("not implemented class: {}", cls);
+      match self.get_mgm(geom) {
+        Err(e) => { println!("not found convex {:?} geomID {:?}", e, geom); },
+        Ok(mgm) => {
+          let fvp: &convexfvp = &*mgm.as_convex().fvp;
+          dsDrawConvexD(pos, rot,
+            fvp.faces, fvp.faceCount, fvp.vtx, fvp.vtxCount, fvp.polygons);
+        }
+      }
     },
     dGeomTransformClass => {
       let gt: dGeomID = dGeomTransformGetGeom(geom);
@@ -865,7 +867,36 @@ unsafe {
       self.draw_geom(gt, Some(rpos.as_ptr()), Some(rrot.as_ptr()), ws);
     },
     dTriMeshClass => {
-      println!("not implemented class: {}", cls);
+      match self.get_mgm(geom) {
+        Err(e) => { println!("not found trimesh {:?} geomID {:?}", e, geom); },
+        Ok(mgm) => {
+          let tmv: &trimeshvi = &*mgm.as_trimesh().tmv;
+/* (C)
+    int is_composite = (dGeomGetSpace(geom) == 0);
+    dVector3 tpos = {0.0, 0.0, 0.0};
+    dMatrix3 trot;
+    dRSetIdentity(trot);
+    int triCount = dGeomTriMeshGetTriangleCount(geom);
+    for(int i = 0; i < triCount; ++i){
+      dVector3 v0, v1, v2;
+      dGeomTriMeshGetTriangle(geom, i, &v0, &v1, &v2); // already transformed
+      if(!is_composite) dsDrawTriangleD(tpos, trot, v0, v1, v2, ws); // top
+      else dsDrawTriangleD(pos, rot, v0, v1, v2, ws); // in the dTransformClass
+    }
+*/
+          let vtx = tmv.as_slice_vtx();
+          let p = tmv.as_slice_indices();
+          for i in 0..p.len()/3 {
+            let idx = [p[i*3] as usize, p[i*3+1] as usize, p[i*3+2] as usize];
+            let v: [[dReal; 3]; 3] = [
+              [vtx[idx[0] * 3 + 0], vtx[idx[0] * 3 + 1], vtx[idx[0] * 3 + 2]],
+              [vtx[idx[1] * 3 + 0], vtx[idx[1] * 3 + 1], vtx[idx[1] * 3 + 2]],
+              [vtx[idx[2] * 3 + 0], vtx[idx[2] * 3 + 1], vtx[idx[2] * 3 + 2]]];
+            dsDrawTriangleD(pos, rot,
+              v[0].as_ptr(), v[1].as_ptr(), v[2].as_ptr(), ws);
+          }
+        }
+      }
     },
     dHeightfieldClass => {
       println!("not implemented class: {}", cls);

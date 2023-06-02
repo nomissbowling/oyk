@@ -262,6 +262,8 @@ impl MetaInf for MetaPlane {
 /// MetaConvex
 #[derive(Clone)]
 pub struct MetaConvex {
+  /// free flag
+  pub ff: bool,
   /// mass density
   pub dm: dReal,
   /// convexfvp *** CAUTION how to clone ***
@@ -274,9 +276,9 @@ pub struct MetaConvex {
 
 impl MetaConvex {
   /// construct
-  pub fn new(dm: dReal, fvp: *mut convexfvp,
+  pub fn new(ff: bool, dm: dReal, fvp: *mut convexfvp,
     krp: Krp, tex: i32, col: dVector4) -> Box<MetaConvex> {
-    Box::new(MetaConvex{dm: dm, fvp: fvp,
+    Box::new(MetaConvex{ff: ff, dm: dm, fvp: fvp,
       krp: krp, tcm: TCMaterial::new(tex, col)})
   }
 }
@@ -296,9 +298,21 @@ impl MetaInf for MetaConvex {
   fn dup(&self) -> Box<dyn MetaInf> { Box::new(self.clone()) }
 }
 
+impl Drop for MetaConvex {
+  fn drop(&mut self) {
+    if self.ff && self.fvp != 0 as *mut convexfvp {
+unsafe {
+      FreeConvexFVP(self.fvp, self.ff);
+}
+    }
+  }
+}
+
 /// MetaTriMesh
 #[derive(Clone)]
 pub struct MetaTriMesh {
+  /// free flag
+  pub ff: bool,
   /// mass density
   pub dm: dReal,
   /// trimeshvi *** CAUTION how to clone ***
@@ -311,9 +325,9 @@ pub struct MetaTriMesh {
 
 impl MetaTriMesh {
   /// construct
-  pub fn new(dm: dReal, tmv: *mut trimeshvi,
+  pub fn new(ff: bool, dm: dReal, tmv: *mut trimeshvi,
     krp: Krp, tex: i32, col: dVector4) -> Box<MetaTriMesh> {
-    Box::new(MetaTriMesh{dm: dm, tmv: tmv,
+    Box::new(MetaTriMesh{ff: ff, dm: dm, tmv: tmv,
       krp: krp, tcm: TCMaterial::new(tex, col)})
   }
 }
@@ -331,6 +345,16 @@ impl MetaInf for MetaTriMesh {
   fn as_trimesh(&self) -> &MetaTriMesh { self }
   /// clone MetaInf
   fn dup(&self) -> Box<dyn MetaInf> { Box::new(self.clone()) }
+}
+
+impl Drop for MetaTriMesh {
+  fn drop(&mut self) {
+    if self.ff && self.tmv != 0 as *mut trimeshvi {
+unsafe {
+      FreeTriMeshVI(self.tmv, self.ff);
+}
+    }
+  }
 }
 
 /// MetaComposite (not have dup #[derive(Clone)])

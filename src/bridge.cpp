@@ -156,37 +156,27 @@ void RecalcFaces(convexfvp *fvp)
   }
 }
 
-void FreeTriMeshVI(trimeshvi *tmv)
+void FreeTriMeshVI(trimeshvi *tmv, bool ff)
 {
   if(!tmv) return;
-  if(tmv->vtx) delete[] tmv->vtx;
-  if(tmv->indices) delete[] tmv->indices;
+  if(ff){
+    if(tmv->vtx) delete[] tmv->vtx;
+    if(tmv->indices) delete[] tmv->indices;
+  }
   delete tmv;
 }
-/*
-void FreeMetaTriMesh(metatrimesh *mt)
-{
-  if(!mt) return;
-  if(mt->tmv) FreeTriMeshVI(mt->tmv);
-  delete mt;
-}
-*/
-void FreeConvexFVP(convexfvp *fvp)
+
+void FreeConvexFVP(convexfvp *fvp, bool ff)
 {
   if(!fvp) return;
-  if(fvp->faces) delete[] fvp->faces;
-  if(fvp->vtx) delete[] fvp->vtx;
-  if(fvp->polygons) delete[] fvp->polygons;
+  if(ff){
+    if(fvp->faces) delete[] fvp->faces;
+    if(fvp->vtx) delete[] fvp->vtx;
+    if(fvp->polygons) delete[] fvp->polygons;
+  }
   delete fvp;
 }
-/*
-void FreeMetaConvex(metaconvex *mc)
-{
-  if(!mc) return;
-  if(mc->fvp) FreeConvexFVP(mc->fvp);
-  delete mc;
-}
-*/
+
 trimeshvi *CvtTriMeshVIFromConvexFVP(convexfvp *fvp, dReal sc)
 {
   trimeshvi *tmv = new trimeshvi;
@@ -223,17 +213,7 @@ trimeshvi *CvtTriMeshVIFromConvexFVP(convexfvp *fvp, dReal sc)
   }
   return tmv;
 }
-/*
-metatrimesh *CvtMetaTriMeshFromConvex(metaconvex *mc, dReal sc)
-{
-  metatrimesh *mt = new metatrimesh;
-  if(!mt) throw runtime_error("can't create metatrimesh cvt");
-  mt->density = mc->density;
-  mt->tmv = CvtTriMeshVIFromConvexFVP(mc->fvp, sc);
-  mt->cm = mc->cm;
-  return mt;
-}
-*/
+
 convexfvp *CvtConvexFVPFromTriMeshVI(trimeshvi *tmv, dReal sc)
 {
   convexfvp *fvp = new convexfvp;
@@ -258,17 +238,7 @@ convexfvp *CvtConvexFVPFromTriMeshVI(trimeshvi *tmv, dReal sc)
   RecalcFaces(fvp);
   return fvp;
 }
-/*
-metaconvex *CvtMetaConvexFromTriMesh(metatrimesh *mt, dReal sc)
-{
-  metaconvex *mc = new metaconvex;
-  if(!mc) throw runtime_error("can't create metaconvex cvt");
-  mc->density = mt->density;
-  mc->fvp = CvtConvexFVPFromTriMeshVI(mt->tmv, sc);
-  mc->cm = mt->cm;
-  return mc;
-}
-*/
+
 trimeshvi *ScaleTriMeshVI(trimeshvi *tmv, dReal sc)
 {
   for(int i = 0; i < 3 * tmv->vtxCount; ++i) tmv->vtx[i] *= sc;
@@ -301,55 +271,7 @@ trimeshvi *CopyTriMeshVI(trimeshvi *dst, trimeshvi *src, dReal sc)
   memcpy(dst->indices, src->indices, sizeof(dTriIndex) * dst->indexCount);
   return dst;
 }
-/*
-metatrimesh *CopyMetaTriMesh(
-  metatrimesh *dst, metatrimesh *src, dReal sc)
-{
-  int create = dst == NULL;
-  if(create){
-    dst = new metatrimesh;
-    if(!dst) throw runtime_error("can't create metatrimesh");
-  }
-  dst->density = src->density;
-  dst->tmv = CopyTriMeshVI(create ? NULL : dst->tmv, src->tmv, sc);
-  dst->cm = src->cm;
-  return dst;
-}
-*/
-/*
-dGeomID CreateGeomTrimeshFromVI(dSpaceID space, trimeshvi *tmv)
-{
-  dTriMeshDataID tmd = dGeomTriMeshDataCreate();
-  dGeomTriMeshDataBuildDouble(tmd,
-    tmv->vtx, 3 * sizeof(dReal), tmv->vtxCount,
-    tmv->indices, tmv->indexCount, 3 * sizeof(dTriIndex));
-  dGeomTriMeshDataPreprocess2(tmd,
-    (1U << dTRIDATAPREPROCESS_BUILD_FACE_ANGLES), NULL);
-  dGeomID geom = dCreateTriMesh(space, tmd, 0, 0, 0);
-#if 0 // do not release here
-  if(tmd){ dGeomTriMeshDataDestroy(tmd); tmd = NULL; }
-#else
-  dGeomSetData(geom, tmd);
-#endif
-  return MapGeomTriMesh(geom, tmv);
-}
 
-dBodyID CreateTrimeshFromVI(dWorldID world, dSpaceID space,
-  const char *key, metatrimesh *mt)
-{
-  dGeomID geom = CreateGeomTrimeshFromVI(space, mt->tmv);
-  dMass mass;
-  dMassSetZero(&mass);
-  dMassSetTrimesh(&mass, mt->density, geom);
-  dGeomSetPosition(geom, -mass.c[0], -mass.c[1], -mass.c[2]);
-  dMassTranslate(&mass, -mass.c[0], -mass.c[1], -mass.c[2]);
-  dBodyID b = dBodyCreate(world);
-  dBodySetMass(b, &mass);
-  dGeomSetBody(geom, b);
-  MapGeomMaterial(geom, mt->cm);
-  return MapBody(key, OrderBody(b, 0));
-}
-*/
 convexfvp *ScaleConvexFVP(convexfvp *fvp, dReal sc)
 {
   for(int i = 0; i < 3 * fvp->vtxCount; ++i) fvp->vtx[i] *= sc;
@@ -393,54 +315,3 @@ convexfvp *CopyConvexFVP(convexfvp *dst, convexfvp *src, dReal sc)
   memcpy(dst->polygons, src->polygons, sizeof(unsigned int) * count);
   return dst;
 }
-/*
-metaconvex *CopyMetaConvex(
-  metaconvex *dst, metaconvex *src, dReal sc)
-{
-  int create = dst == NULL;
-  if(create){
-    dst = new metaconvex;
-    if(!dst) throw runtime_error("can't create metaconvex");
-  }
-  dst->density = src->density;
-  dst->fvp = CopyConvexFVP(create ? NULL : dst->fvp, src->fvp, sc);
-  dst->cm = src->cm;
-  return dst;
-}
-*/
-/*
-dGeomID CreateGeomConvexFromFVP(dSpaceID space, convexfvp *fvp)
-{
-  dGeomID geom = dCreateConvex(space,
-    fvp->faces, fvp->faceCount, fvp->vtx, fvp->vtxCount, fvp->polygons);
-  return MapGeomConvex(geom, fvp);
-}
-
-dBodyID CreateConvexFromFVP(dWorldID world, dSpaceID space,
-  const char *key, metaconvex *mc)
-{
-  dGeomID geom = CreateGeomConvexFromFVP(space, mc->fvp);
-  dMass mass;
-  dMassSetZero(&mass);
-  _MassSetConvexAsTrimesh(&mass, mc->density, geom);
-  dGeomSetPosition(geom, -mass.c[0], -mass.c[1], -mass.c[2]);
-  dMassTranslate(&mass, -mass.c[0], -mass.c[1], -mass.c[2]);
-  dBodyID b = dBodyCreate(world);
-  dBodySetMass(b, &mass);
-  dGeomSetBody(geom, b);
-  MapGeomMaterial(geom, mc->cm);
-  return MapBody(key, OrderBody(b, 0));
-}
-*/
-/*
-void _MassSetConvexAsTrimesh(dMass *m, dReal density, dGeomID g)
-{
-  convexfvp *fvp = FindConvex(g);
-  trimeshvi *tmv = CvtTriMeshVIFromConvexFVP(fvp, 1.0);
-  dGeomID gt = CreateGeomTrimeshFromVI(0, tmv); // mapped
-  dMassSetTrimesh(m, density, gt);
-  UnMapGeomTriMesh(gt);
-  dGeomDestroy(gt);
-  FreeTriMeshVI(tmv);
-}
-*/

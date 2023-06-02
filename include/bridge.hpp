@@ -79,38 +79,45 @@ void Normal4(dReal *n, dReal *v);
 /// recalc triangle convexfvp (set normal of faces)
 void RecalcFaces(convexfvp *fvp);
 
-void FreeTriMeshVI(trimeshvi *tmv);
-//void FreeMetaTriMesh(metatrimesh *mt);
+/// delete vtx, indices when ff is true
+void FreeTriMeshVI(trimeshvi *tmv, bool ff);
+// void FreeMetaTriMesh(metatrimesh *mt); // to Rust Drop
 
-void FreeConvexFVP(convexfvp *fvp);
-//void FreeMetaConvex(metaconvex *mc);
+/// delete faces, vtx, polygons when ff is true
+void FreeConvexFVP(convexfvp *fvp, bool ff);
+// void FreeMetaConvex(metaconvex *mc); // to Rust Drop
 
+/// always new trimeshvi rescale and return it
 trimeshvi *CvtTriMeshVIFromConvexFVP(convexfvp *fvp, dReal sc);
-//metatrimesh *CvtMetaTriMeshFromConvex(metaconvex *mc, dReal sc);
+// metatrimesh *CvtMetaTriMeshFromConvex(metaconvex *mc, dReal sc); // to Rust
 
+/// always new convexfvp rescale and return it
 convexfvp *CvtConvexFVPFromTriMeshVI(trimeshvi *tmv, dReal sc);
-//metaconvex *CvtMetaConvexFromTriMesh(metatrimesh *mt, dReal sc);
+// metaconvex *CvtMetaConvexFromTriMesh(metatrimesh *mt, dReal sc); // to Rust
 
+/// overwrite trimeshvi rescale and return it
 trimeshvi *ScaleTriMeshVI(trimeshvi *tmv, dReal sc);
+/// (dst is NULL: new, !NULL: overwrite) trimeshvi rescale and return it
 trimeshvi *CopyTriMeshVI(trimeshvi *dst, trimeshvi *src, dReal sc);
-//metatrimesh *CopyMetaTriMesh(
-//  metatrimesh *dst, metatrimesh *src, dReal sc);
-/*
-dGeomID CreateGeomTrimeshFromVI(dSpaceID space, trimeshvi *tmv);
-//dBodyID CreateTrimeshFromVI(dWorldID world, dSpaceID space,
-//  const char *key, metatrimesh *mt);
-*/
-convexfvp *ScaleConvexFVP(convexfvp *fvp, dReal sc);
-convexfvp *CopyConvexFVP(convexfvp *dst, convexfvp *src, dReal sc);
-//metaconvex *CopyMetaConvex(
-//  metaconvex *dst, metaconvex *src, dReal sc);
-/*
-dGeomID CreateGeomConvexFromFVP(dSpaceID space, convexfvp *fvp);
-//dBodyID CreateConvexFromFVP(dWorldID world, dSpaceID space,
-//  const char *key, metaconvex *mc);
-*/
-//void _MassSetConvexAsTrimesh(dMass *m, dReal density, dGeomID g);
+// metatrimesh *CopyMetaTriMesh(
+//   metatrimesh *dst, metatrimesh *src, dReal sc); // to Rust (NewCopy, Copy)
 
+// dGeomID CreateGeomTrimeshFromVI(dSpaceID space, trimeshvi *tmv); // to Rust
+// dBodyID CreateTrimeshFromVI(dWorldID world, dSpaceID space,
+//   const char *key, metatrimesh *mt); // (merge into above and creator_dm)
+
+/// overwrite convexfvp rescale and return it
+convexfvp *ScaleConvexFVP(convexfvp *fvp, dReal sc);
+/// (dst is NULL: new, !NULL: overwrite) convexfvp rescale and return it
+convexfvp *CopyConvexFVP(convexfvp *dst, convexfvp *src, dReal sc);
+// metaconvex *CopyMetaConvex(
+//   metaconvex *dst, metaconvex *src, dReal sc); // to Rust (NewCopy, Copy)
+
+// dGeomID CreateGeomConvexFromFVP(dSpaceID space, convexfvp *fvp); // to Rust
+// dBodyID CreateConvexFromFVP(dWorldID world, dSpaceID space,
+//   const char *key, metaconvex *mc); // (merge into above and creator_dm)
+
+// void _MassSetConvexAsTrimesh(dMass *m, dReal density, dGeomID g); // to Rust
 }
 
 #endif // __BRIDGE_H__
