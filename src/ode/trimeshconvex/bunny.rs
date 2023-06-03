@@ -1,4 +1,4 @@
-//! trimesh_bunny
+//! bunny
 //!
 
 use crate::ode::*;
@@ -1825,9 +1825,9 @@ static mut POLYGONS: Lazy<Vec<u32>> = Lazy::new(|| vec![ // 176 * (1 + 3)
   3, 104, 93, 19]);
 
 /// unsafe static mut
-pub static mut tmv_bunny: Lazy<trimeshvi> = Lazy::new(||
+pub static mut tmv: Lazy<trimeshvi> = Lazy::new(||
   unsafe { trimeshvi::new(&mut TMVTX, &mut INDICES) });
 
 /// unsafe static mut
-pub static mut fvp_bunny: Lazy<convexfvp> = Lazy::new(||
+pub static mut fvp: Lazy<convexfvp> = Lazy::new(||
   unsafe { convexfvp::new(&mut PLANES, &mut VTX, &mut POLYGONS) });

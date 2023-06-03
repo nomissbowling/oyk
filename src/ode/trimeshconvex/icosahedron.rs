@@ -1,4 +1,4 @@
-//! trimesh_icosahedron
+//! icosahedron
 //!
 
 use crate::ode::*;
@@ -294,9 +294,9 @@ static mut POLYGONS: Lazy<Vec<u32>> = Lazy::new(|| vec![ // 80 * (1 + 3)
   3,41,36,9]);
 
 /// unsafe static mut
-pub static mut tmv_icosahedron: Lazy<trimeshvi> = Lazy::new(||
+pub static mut tmv: Lazy<trimeshvi> = Lazy::new(||
   unsafe { trimeshvi::new(&mut VTX, &mut INDICES) });
 
 /// unsafe static mut
-pub static mut fvp_icosahedron: Lazy<convexfvp> = Lazy::new(||
+pub static mut fvp: Lazy<convexfvp> = Lazy::new(||
   unsafe { convexfvp::new(&mut PLANES, &mut VTX, &mut POLYGONS) });

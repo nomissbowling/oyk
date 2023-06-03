@@ -6,9 +6,9 @@ use crate::ode::*;
 /// krp
 #[derive(Clone, Copy)]
 pub struct Krp {
-  /// kinetics
+  /// kinetics (false: keep position)
   pub k: bool,
-  /// gravity sensitive
+  /// gravity sensitive (false: call dBodyDisable())
   pub g: bool,
   /// collision
   pub c: bool,

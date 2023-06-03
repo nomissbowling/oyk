@@ -1,4 +1,4 @@
-//! trimesh_cube
+//! cube
 //!
 
 use crate::ode::*;
@@ -53,9 +53,9 @@ static mut POLYGONS: Lazy<Vec<u32>> = Lazy::new(|| vec![ // 6 * (1 + 4)
   4, 5, 4, 6, 7]); // -Z
 
 /// unsafe static mut
-pub static mut tmv_cube: Lazy<trimeshvi> = Lazy::new(||
+pub static mut tmv: Lazy<trimeshvi> = Lazy::new(||
   unsafe { trimeshvi::new(&mut VTX, &mut INDICES) });
 
 /// unsafe static mut
-pub static mut fvp_cube: Lazy<convexfvp> = Lazy::new(||
+pub static mut fvp: Lazy<convexfvp> = Lazy::new(||
   unsafe { convexfvp::new(&mut PLANES, &mut VTX, &mut POLYGONS) });

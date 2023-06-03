@@ -1,13 +1,13 @@
 //! trimeshconvex
 //!
-//! field               TMVTX   INDICES PLANES  VTX     POLYGONS
-//! elems                 (*3)    (*3)    (*4)    (*3)     *(1+n) n=3,4,5,6
-//! trimesh_custom                4*3     4*4     4*3     4*(1+3)
-//! trimesh_tetra                 4*3     4*4     4*3     4*(1+3)
-//! trimesh_cube                 12*3     6*4     8*3     6*(1+4)
-//! trimesh_icosahedron          80*3    80*4    42*3    80*(1+3)
-//! trimesh_bunny       453*3   902*3   176*4   105*3   176*(1+3)
-//! field                               FACES
+//! FIELD       TMVTX   INDICES PLANES  VTX     POLYGONS
+//! ELEMS         (*3)    (*3)    (*4)    (*3)     *(1+n) n=3,4,5,6
+//! custom                4*3     4*4     4*3     4*(1+3)
+//! tetra                 4*3     4*4     4*3     4*(1+3)
+//! cube                 12*3     6*4     8*3     6*(1+4)
+//! icosahedron          80*3    80*4    42*3    80*(1+3)
+//! bunny       453*3   902*3   176*4   105*3   176*(1+3)
+//! FIELD                       FACES
 //! FACES (Normal4) will be reset by RecalcFaces()
 //! The number of POLYGONS is same as FACES (but not same number of words)
 //!
@@ -16,6 +16,12 @@ use crate::ode::*;
 use crate::ode::cls::*;
 use crate::ode::krp::*;
 use crate::ode::meta::*;
+
+pub mod custom;
+pub mod tetra;
+pub mod cube;
+pub mod icosahedron;
+pub mod bunny;
 
 /// constructor trimeshvi
 pub trait TriMesh {
@@ -102,26 +108,6 @@ unsafe {
 }
   }
 }
-
-pub mod trimesh_tetra;
-use trimesh_tetra::*;
-pub use trimesh_tetra::{tmv_tetra, fvp_tetra};
-
-pub mod trimesh_cube;
-use trimesh_cube::*;
-pub use trimesh_cube::{tmv_cube, fvp_cube};
-
-pub mod trimesh_icosahedron;
-use trimesh_icosahedron::*;
-pub use trimesh_icosahedron::{tmv_icosahedron, fvp_icosahedron};
-
-pub mod trimesh_bunny;
-use trimesh_bunny::*;
-pub use trimesh_bunny::{tmv_bunny, fvp_bunny};
-
-pub mod trimesh_custom;
-use trimesh_custom::*;
-pub use trimesh_custom::{tmv_custom, fvp_custom};
 
 /// always new MetaTriMesh rescale
 pub fn CvtMetaTriMeshFromConvex(mc: &MetaConvex, sc: dReal) ->

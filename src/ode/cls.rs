@@ -234,7 +234,7 @@ pub struct GeomOffset<'a> {
   pub o: &'a dVector3
 }
 
-/// use for Vec<T>
+/// use for Vec&lt;T&gt;
 pub trait AsPtr<T> {
   /// &amp;mut self[0] as *mut T
   fn as_ptr_mut(&mut self) -> *mut T;

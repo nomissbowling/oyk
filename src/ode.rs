@@ -45,7 +45,7 @@ use cppbridge::*;
 pub use cppbridge::{Bridge, bput};
 pub use cppbridge::{dMULTIPLY0_331, dMULTIPLY0_333};
 pub use cppbridge::{convexfvp, trimeshvi};
-// pub use cppbridge::{RecalcFaces, Normal4, Cross3};
+pub use cppbridge::{RecalcFaces, Normal4, Cross3};
 
 mod cdrawstuff;
 use cdrawstuff::*;
@@ -84,11 +84,7 @@ pub use krp::{Krp, KRPnk, KRP100, KRP095, KRP080, KRP001};
 pub mod trimeshconvex;
 use trimeshconvex::*;
 pub use trimeshconvex::{TriMesh, Convex};
-pub use trimeshconvex::trimesh_tetra::{tmv_tetra, fvp_tetra};
-pub use trimeshconvex::trimesh_cube::{tmv_cube, fvp_cube};
-pub use trimeshconvex::trimesh_icosahedron::{tmv_icosahedron, fvp_icosahedron};
-pub use trimeshconvex::trimesh_bunny::{tmv_bunny, fvp_bunny};
-pub use trimeshconvex::trimesh_custom::{tmv_custom, fvp_custom};
+pub use trimeshconvex::{custom, tetra, cube, icosahedron, bunny};
 
 pub mod meta;
 use meta::*;
@@ -444,6 +440,7 @@ unsafe {
     body = dBodyCreate(world);
     dBodySetMass(body, &*mass);
     dGeomSetBody(geom, body);
+    if !self.get_krp(geom).g { dBodyDisable(body); } // care no id
 }
     let obg: Obg = Obg::new(key, body, geom, col);
     self.reg_obg(obg)
@@ -516,6 +513,7 @@ unsafe {
   for gtrans in &gto {
     dGeomSetBody(*gtrans, body);
   }
+  if !self.get_krp(gts[&gto[0]].gsub).g { dBodyDisable(body); } // care no id
 }
   gts.clear();
   gto.clear();
