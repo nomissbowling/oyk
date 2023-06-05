@@ -229,6 +229,7 @@ pub fn new(delta: dReal) -> ODE {
     wire_solid: 1, polyfill_wireframe: 0, sw_viewpoint: 0,
     cams: vec![
       Cam::new(vec![5.0, 0.0, 2.0], vec![-180.0, 0.0, 0.0]),
+      Cam::new(vec![0.0, 0.0, 20.0], vec![-180.0, -30.0, 0.0]),
       Cam::new(vec![5.36, 2.02, 4.28], vec![-162.0, -31.0, 0.0]),
       Cam::new(vec![-8.3, -14.1, 3.1], vec![84.5, 1.0, 0.0]),
       Cam::new(vec![4.0, 3.0, 5.0], vec![-150.0, -30.0, 3.0]),
@@ -750,6 +751,16 @@ unsafe {
 }
   }
 
+  /// set pos and rotation (dMatrix3)
+  fn set_pos_R(&mut self, b: dBodyID, p: dVector3, m: dMatrix3) {
+    self.super_mut().get_mut(b).expect("no body").set_pos(p).set_rot(m);
+  }
+
+  /// set pos and rotation (dQuaternion)
+  fn set_pos_Q(&mut self, b: dBodyID, p: dVector3, q: dQuaternion) {
+    self.super_mut().get_mut(b).expect("no body").set_pos(p).set_quaternion(q);
+  }
+
   /// draw_geom function
   fn draw_geom(&self, geom: dGeomID,
     pos: Option<*const dReal>, rot: Option<*const dReal>, ws: i32);
@@ -856,12 +867,10 @@ unsafe {
       let gt: dGeomID = dGeomTransformGetGeom(geom);
       let gtpos: *const dReal = dGeomGetPosition(gt);
       let gtrot: *const dReal = dGeomGetRotation(gt);
-      let mut rpos: dVector3 = [0.0; 4];
-      let mut rrot: dMatrix3 = [0.0; 12];
-      dMULTIPLY0_331(rpos.as_ptr_mut(), rot, gtpos);
+      let mut rpos = dVector3::multiply0_331_pp(rot, gtpos);
       let ppos = std::slice::from_raw_parts(pos, 4); // must be in unsafe
       for i in 0..4 { rpos[i] += ppos[i]; }
-      dMULTIPLY0_333(rrot.as_ptr_mut(), rot, gtrot);
+      let rrot = dMatrix3::multiply0_333_pp(rot, gtrot);
       self.draw_geom(gt, Some(rpos.as_ptr()), Some(rrot.as_ptr()), ws);
     },
     dTriMeshClass => {
@@ -973,13 +982,12 @@ fn step_callback(&mut self, pause: i32) {
   let gws = &self.gws;
   let t_delta = &self.t_delta;
   if pause != 1 {
-    let mut tmp: HashMap<dGeomID, dVector3> = vec![].into_iter().collect();
+    let mut tmp: HashMap<dBodyID, dVector3> = vec![].into_iter().collect();
     for (id, mi) in &self.mgms {
       if !mi.get_krp().k {
 unsafe {
         let b: dBodyID = self.get_grand_parent(*id);
-        let p: *const dReal = dBodyGetPosition(b);
-        tmp.entry(*id).or_insert(*(p as *const dVector3));
+        tmp.entry(b).or_insert(*(dBodyGetPosition(b) as *const dVector3));
 }
       }
     }
@@ -988,10 +996,9 @@ unsafe {
     dWorldStep(gws.world(), *t_delta);
     dJointGroupEmpty(gws.contactgroup());
 }
-    for (id, p) in &tmp {
+    for (b, p) in &tmp {
 unsafe {
-      let b: dBodyID = self.get_grand_parent(*id);
-      dBodySetPosition(b, p[0], p[1], p[2]);
+      dBodySetPosition(*b, p[0], p[1], p[2]);
 }
     }
   }

@@ -144,6 +144,26 @@ unsafe {
 }
     q
   }
+
+  /// constructor
+  fn multiply0(p: &dQuaternion, q: &dQuaternion) -> dQuaternion {
+    let mut o: dQuaternion = [0.0; 4];
+unsafe {
+    dQMultiply0(o.as_ptr_mut(),
+      p.as_ptr() as *mut dReal, q.as_ptr() as *mut dReal);
+}
+    o
+  }
+
+  /// constructor multiply m: dMatrix3 pointer and v: dVector3 pointer
+  /// dVector3::multiply0_331_pp is defined as dQuaternion::multiply0_331_pp
+  fn multiply0_331_pp(m: *const dReal, v: *const dReal) -> dVector3 {
+    let mut o: dVector3 = [0.0; 4];
+unsafe {
+    dMULTIPLY0_331(o.as_ptr_mut(), m, v);
+}
+    o
+  }
 }
 
 impl Quaternion for dQuaternion {
@@ -219,6 +239,15 @@ unsafe {
     let mut m: dMatrix3 = [0.0; 12];
 unsafe {
     dRFromZAxis(m.as_ptr_mut(), e[0], e[1], e[2]);
+}
+    m
+  }
+
+  /// constructor multiply a: dMatrix3 pointer and b: dMatrix3 pointer
+  fn multiply0_333_pp(a: *const dReal, b: *const dReal) -> dMatrix3 {
+    let mut m: dMatrix3 = [0.0; 12];
+unsafe {
+    dMULTIPLY0_333(m.as_ptr_mut(), a, b);
 }
     m
   }

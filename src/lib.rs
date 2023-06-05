@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/oyk/0.8.1")]
+#![doc(html_root_url = "https://docs.rs/oyk/0.8.2")]
 //! OYK is ODE (Open Dynamics Engine) bindings for Rust yaw kinetics
 //!
 //! # Requirements
