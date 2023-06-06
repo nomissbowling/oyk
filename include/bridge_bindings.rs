@@ -97,6 +97,14 @@ extern "C" {
     #[doc = " res = a(&dMatrix3) b(&dMatrix3)"]
     pub fn dMULTIPLY0_333(res: *mut dReal, a: *const dReal, b: *const dReal);
 }
+extern "C" {
+    #[doc = " res = a(&dMatrix4) b(&dVector4 or &dQuaternion)"]
+    pub fn dMULTIPLY0_441(res: *mut dReal, a: *const dReal, b: *const dReal);
+}
+extern "C" {
+    #[doc = " res = a(&dMatrix4) b(&dMatrix4)"]
+    pub fn dMULTIPLY0_444(res: *mut dReal, a: *const dReal, b: *const dReal);
+}
 #[doc = " TriMeshVI"]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]

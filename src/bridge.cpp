@@ -107,6 +107,65 @@ void dMULTIPLY0_333(dReal *res, const dReal *a, const dReal *b)
   dMultiply0_333(res, a, b);
 }
 
+static __inline dReal _dCalcVectorDot4(const dReal *a, const dReal *b, unsigned step_a, unsigned step_b)
+{
+  return a[0] * b[0] + a[step_a] * b[step_b] + a[2 * step_a] * b[2 * step_b] + a[3 * step_a] * b[3 * step_b];
+}
+
+static __inline dReal dCalcVectorDot4 (const dReal *a, const dReal *b) { return _dCalcVectorDot4(a,b,1,1); }
+
+static __inline void dMultiplyHelper0_441(dReal *res, const dReal *a, const dReal *b)
+{
+  const dReal res_0 = dCalcVectorDot4(a, b);
+  const dReal res_1 = dCalcVectorDot4(a + 4, b);
+  const dReal res_2 = dCalcVectorDot4(a + 8, b);
+  const dReal res_3 = dCalcVectorDot4(a + 12, b);
+
+  res[0] = res_0; res[1] = res_1; res[2] = res_2; res[3] = res_3;
+}
+
+static __inline void dMultiply0_441(dReal *res, const dReal *a, const dReal *b)
+{
+  dMultiplyHelper0_441(res, a, b);
+}
+
+/// res = a(&dMatrix4) b(&dVector4 or &dQuaternion)
+void dMULTIPLY0_441(dReal *res, const dReal *a, const dReal *b)
+{
+  dMultiply0_441(res, a, b);
+}
+
+static __inline dReal dCalcVectorDot4_41 (const dReal *a, const dReal *b) { return _dCalcVectorDot4(a,b,4,1); }
+
+static __inline void dMultiplyHelper1_441(dReal *res, const dReal *a, const dReal *b)
+{
+  const dReal res_0 = dCalcVectorDot4_41(a, b);
+  const dReal res_1 = dCalcVectorDot4_41(a + 1, b);
+  const dReal res_2 = dCalcVectorDot4_41(a + 2, b);
+  const dReal res_3 = dCalcVectorDot4_41(a + 3, b);
+
+  res[0] = res_0; res[1] = res_1; res[2] = res_2; res[3] = res_3;
+}
+
+static __inline void dMultiplyHelper0_144(dReal *res, const dReal *a, const dReal *b)
+{
+  dMultiplyHelper1_441(res, b, a);
+}
+
+static __inline void dMultiply0_444(dReal *res, const dReal *a, const dReal *b)
+{
+  dMultiplyHelper0_144(res + 0, a + 0, b);
+  dMultiplyHelper0_144(res + 4, a + 4, b);
+  dMultiplyHelper0_144(res + 8, a + 8, b);
+  dMultiplyHelper0_144(res + 12, a + 12, b);
+}
+
+/// res = a(&dMatrix4) b(&dMatrix4)
+void dMULTIPLY0_444(dReal *res, const dReal *a, const dReal *b)
+{
+  dMultiply0_444(res, a, b);
+}
+
 // trimeshconvex
 static dReal scale_min_limit = 1e-5;
 

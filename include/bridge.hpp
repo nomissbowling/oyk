@@ -40,6 +40,11 @@ void dMULTIPLY0_331(dReal *res, const dReal *a, const dReal *b);
 /// res = a(&dMatrix3) b(&dMatrix3)
 void dMULTIPLY0_333(dReal *res, const dReal *a, const dReal *b);
 
+/// res = a(&dMatrix4) b(&dVector4 or &dQuaternion)
+void dMULTIPLY0_441(dReal *res, const dReal *a, const dReal *b);
+/// res = a(&dMatrix4) b(&dMatrix4)
+void dMULTIPLY0_444(dReal *res, const dReal *a, const dReal *b);
+
 /// TriMeshVI
 struct trimeshvi {
   /// number of vertices
