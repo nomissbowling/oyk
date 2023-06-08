@@ -56,7 +56,7 @@ pub fn new() -> dContact {
 }
 
 /// static angle 180
-pub static PI: dReal = 3.14159265;
+pub use std::f64::consts::PI;
 /// static angle 360 dual
 pub static PId: dReal = PI * 2.0;
 /// static angle 90 half
@@ -203,6 +203,12 @@ unsafe {
     [q[0], -q[1], -q[2], -q[3]]
 }
   }
+
+  /// check equal with precision
+  fn prec_eq(&self, e: dReal, q: dQuaternion) -> bool;
+
+  /// for Debug
+  fn as_vec(&self) -> ODEMat;
 }
 
 impl Quaternion for dQuaternion {
@@ -210,6 +216,19 @@ impl Quaternion for dQuaternion {
   fn as_ptr_mut(&mut self) -> *mut dReal { &mut (*self)[0] as *mut dReal }
   /// ptr of dQuaternion (use for converter)
   fn as_ptr(&self) -> *const dReal { &(*self)[0] as *const dReal }
+
+  /// check equal with precision
+  fn prec_eq(&self, e: dReal, q: dQuaternion) -> bool {
+    for i in 0..4 {
+      if (self[i] - q[i]).abs() >= e { return false; }
+    }
+    true
+  }
+
+  /// for Debug
+  fn as_vec(&self) -> ODEMat {
+    ODEMat::from_Q(self.as_ptr())
+  }
 }
 
 /// constructor and converter for primitive type
@@ -310,6 +329,12 @@ unsafe {
 }
     m
   }
+
+  /// check equal with precision
+  fn prec_eq(&self, e: dReal, m: dMatrix3) -> bool;
+
+  /// for Debug
+  fn as_mat(&self) -> ODEMat;
 }
 
 impl Matrix3 for dMatrix3 {
@@ -317,6 +342,19 @@ impl Matrix3 for dMatrix3 {
   fn as_ptr_mut(&mut self) -> *mut dReal { &mut (*self)[0] as *mut dReal }
   /// ptr of dMatrix3 (use for converter)
   fn as_ptr(&self) -> *const dReal { &(*self)[0] as *const dReal }
+
+  /// check equal with precision
+  fn prec_eq(&self, e: dReal, m: dMatrix3) -> bool {
+    for i in 0..12 {
+      if (self[i] - m[i]).abs() >= e { return false; }
+    }
+    true
+  }
+
+  /// for Debug
+  fn as_mat(&self) -> ODEMat {
+    ODEMat::from_Mat3(self.as_ptr())
+  }
 }
 
 /// constructor and converter for primitive type
@@ -349,14 +387,46 @@ unsafe {
 }
   }
 
+  /// constructor (Quaternion conjugate)
+  fn q_conjugate(m: dMatrix4) -> dMatrix4 {
+    dMatrix4::q_conjugate_ptr(m.as_ptr())
+  }
+
+  /// constructor (Quaternion conjugate) pointer
+  fn q_conjugate_ptr(m: *const dReal) -> dMatrix4 {
+unsafe {
+    let m = std::slice::from_raw_parts(m, 16);
+    [m[0], -m[1], -m[2], -m[3],
+     -m[4], m[5], -m[6], -m[7],
+     -m[8], -m[9], m[10], -m[11],
+     -m[12], -m[13], -m[14], m[15]]
+}
+  }
+
   /// constructor (converter) q: dQuaternion
-  fn Hermitian_Q(q: dQuaternion) -> dMatrix4 {
-    dMatrix4::t(dMatrix4::from_Q(dQuaternion::conjugate(q)))
+  fn from_Conjugate_Q(q: dQuaternion) -> dMatrix4 {
+    dMatrix4::from_Q(dQuaternion::conjugate(q))
   }
 
   /// constructor (converter) q: dQuaternion pointer
-  fn Hermitian_Q_ptr(q: *const dReal) -> dMatrix4 {
-    dMatrix4::t(dMatrix4::from_Q(dQuaternion::conjugate_ptr(q)))
+  fn from_Conjugate_Q_ptr(q: *const dReal) -> dMatrix4 {
+    dMatrix4::from_Q(dQuaternion::conjugate_ptr(q))
+  }
+
+  /// constructor (converter) p: dQuaternion
+  fn from_P(p: dQuaternion) -> dMatrix4 {
+    dMatrix4::from_P_ptr(p.as_ptr())
+  }
+
+  /// constructor (converter) p: dQuaternion pointer
+  fn from_P_ptr(p: *const dReal) -> dMatrix4 {
+unsafe {
+    let p = std::slice::from_raw_parts(p, 4);
+    [ p[0], -p[1], -p[2], -p[3],
+      p[1],  p[0],  p[3], -p[2],
+      p[2], -p[3],  p[0],  p[1],
+      p[3],  p[2], -p[1],  p[0]]
+}
   }
 
   /// constructor (converter) q: dQuaternion
@@ -388,6 +458,18 @@ unsafe {
 }
     m
   }
+
+  /// check dMatrix4 is dQuaternion
+  fn is_quaternion(&self) -> bool;
+
+  /// to dQuatrenion (check is_quaternion() before)
+  fn to_Q(&self) -> dQuaternion;
+
+  /// check equal with precision
+  fn prec_eq(&self, e: dReal, m: dMatrix4) -> bool;
+
+  /// for Debug
+  fn as_mat(&self) -> ODEMat;
 }
 
 impl Matrix4 for dMatrix4 {
@@ -395,6 +477,37 @@ impl Matrix4 for dMatrix4 {
   fn as_ptr_mut(&mut self) -> *mut dReal { &mut (*self)[0] as *mut dReal }
   /// ptr of dMatrix4 (use for converter)
   fn as_ptr(&self) -> *const dReal { &(*self)[0] as *const dReal }
+
+  /// check dMatrix4 is dQuaternion
+  fn is_quaternion(&self) -> bool {
+    if self[0] != self[5] || self[0] != self[10] || self[0] != self[15] {
+      return false;
+    }
+    if (self[4] != self[14] || self[8] != self[7] || self[12] != self[9])
+    && (self[4] != self[11] || self[8] != self[13] || self[12] != self[6]) {
+      return false;
+    }
+    dMatrix4::t(dMatrix4::q_conjugate(*self)) == *self
+  }
+
+  /// to dQuatrenion (check is_quaternion() before)
+  fn to_Q(&self) -> dQuaternion {
+    if !self.is_quaternion() { panic!("not quaternion"); }
+    [self[0], self[4], self[8], self[12]]
+  }
+
+  /// check equal with precision
+  fn prec_eq(&self, e: dReal, m: dMatrix4) -> bool {
+    for i in 0..16 {
+      if (self[i] - m[i]).abs() >= e { return false; }
+    }
+    true
+  }
+
+  /// for Debug
+  fn as_mat(&self) -> ODEMat {
+    ODEMat::from_Mat4(self.as_ptr())
+  }
 }
 
 impl dMass {

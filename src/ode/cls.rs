@@ -187,6 +187,35 @@ unsafe {
   self
 }
 
+/// set torque
+pub fn set_torque(&mut self, t: [dReal; 3]) -> &mut Obg {
+unsafe {
+  dBodySetTorque(self.body(), t[0], t[1], t[2]);
+}
+  self
+}
+
+/// is enabled
+pub fn is_enabled(&self) -> bool {
+unsafe {
+  dBodyIsEnabled(self.body()) != 0
+}
+}
+
+/// disable
+pub fn disable(&mut self) {
+unsafe {
+  dBodyDisable(self.body());
+}
+}
+
+/// enable
+pub fn enable(&mut self) {
+unsafe {
+  dBodyEnable(self.body());
+}
+}
+
 }
 
 /// object of ODE, gws: singleton

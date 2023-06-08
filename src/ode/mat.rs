@@ -29,6 +29,27 @@ impl ODEMat<'_> {
   pub fn as_mat(nr: usize, mat: &[dReal]) -> ODEMat {
     ODEMat::from_slice(nr, 4, mat)
   }
+
+  /// construct
+  pub fn from_Q(q: *const dReal) -> ODEMat<'static> {
+unsafe {
+    ODEMat::as_vec(std::slice::from_raw_parts(q, 4))
+}
+  }
+
+  /// construct
+  pub fn from_Mat3(m: *const dReal) -> ODEMat<'static> {
+unsafe {
+    ODEMat::as_mat(3, std::slice::from_raw_parts(m, 12))
+}
+  }
+
+  /// construct
+  pub fn from_Mat4(m: *const dReal) -> ODEMat<'static> {
+unsafe {
+    ODEMat::as_mat(4, std::slice::from_raw_parts(m, 16))
+}
+  }
 }
 
 /// mat formatter
