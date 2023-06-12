@@ -93,7 +93,7 @@ pub use meta::{MetaSphere, MetaBox, MetaCapsule, MetaCylinder, MetaPlane};
 
 pub mod cls;
 use cls::*;
-pub use cls::{AsPtr};
+pub use cls::{obg::{Obg, Gws}, AsPtr};
 
 use std::collections::hash_map::Entry;
 use std::collections::HashMap; // with #[derive(PartialEq, Eq, Hash)] struct
