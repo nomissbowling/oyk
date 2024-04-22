@@ -1,10 +1,15 @@
-#![doc(html_root_url = "https://docs.rs/oyk/0.9.1")]
+#![doc(html_root_url = "https://docs.rs/oyk/0.10.1")]
 //! OYK is ODE (Open Dynamics Engine) bindings for Rust yaw kinetics
 //!
 //! # Requirements
 //!
-//! - [ https://github.com/nomissbowling/asciiz ]( https://github.com/nomissbowling/asciiz )
-//! - [ ode and drawstuff ]( https://ode.org/ )
+//! - [ode and drawstuff](https://ode.org/)
+//! - [ode-base for Rust crates.io](https://crates.io/crates/ode-base)
+//! - [ode-base for Rust rep.](https://github.com/nomissbowling/ode-base)
+//! - [drawstuff for Rust crates.io](https://crates.io/crates/drawstuff)
+//! - [drawstuff for Rust rep.](https://github.com/nomissbowling/drawstuff)
+//! - [https://crates.io/crates/asciiz](https://crates.io/crates/asciiz)
+//! - [https://github.com/nomissbowling/asciiz](https://github.com/nomissbowling/asciiz)
 //!
 //! to build dll
 //!
@@ -23,18 +28,19 @@
 //!
 //! see also
 //!
-//! - [ https://github.com/nomissbowling/ode-rs-0000 ]( https://github.com/nomissbowling/ode-rs-0000 )
+//! - [https://crates.io/crates/ode-rs-0000](https://crates.io/crates/ode-rs-0000)
+//! - [https://github.com/nomissbowling/ode-rs-0000](https://github.com/nomissbowling/ode-rs-0000)
 //!
 
 pub mod ode;
 pub mod colors;
 
-/*
 #[cfg(test)]
 mod tests {
+  use super::colors::*;
+/*
   use super::ode::*;
 
-  /// with [-- --nocapture] or with [-- --show-output]
   #[test]
   fn check_quaternion_matrix() {
     let q = dQuaternion::from_axis_and_angle([1.0, 0.0, 0.0], PIh);
@@ -112,5 +118,12 @@ mod tests {
     assert!(mpmq.to_Q().prec_eq(1e-15, pq));
     assert!(momq.prec_eq(1e-15, mpmo));
   }
-}
 */
+
+  /// with [-- --nocapture] or with [-- --show-output]
+  #[test]
+  fn test_ode() {
+    assert_eq!(COLORS[0], 0xcccccccc);
+    assert_eq!(vec4_from_u32(COLORS[COLORS.len() - 1]), [0.2, 0.2, 0.2, 0.8]);
+  }
+}

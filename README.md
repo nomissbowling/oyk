@@ -19,11 +19,23 @@ ode.dll drawstuff.dll for x64 Windows binary compiled with -DdDOUBLE by mingw
 (It may work with VC, or other platforms.)
 
 
+Links
+-----
+
+- [https://crates.io/crates/ode-rs](https://crates.io/crates/ode-rs)
+- [https://github.com/nomissbowling/ode-rs](https://github.com/nomissbowling/ode-rs)
+
+
 Requirements
 ------------
 
-- [ https://github.com/nomissbowling/asciiz ]( https://github.com/nomissbowling/asciiz )
 - [ ode and drawstuff ]( https://ode.org/ )
+- [https://crates.io/crates/ode-base](https://crates.io/crates/ode-base)
+- [https://github.com/nomissbowling/ode-base](https://github.com/nomissbowling/ode-base)
+- [https://crates.io/crates/drawstuff](https://crates.io/crates/drawstuff)
+- [https://github.com/nomissbowling/drawstuff](https://github.com/nomissbowling/drawstuff)
+- [https://crates.io/crates/asciiz](https://crates.io/crates/asciiz)
+- [https://github.com/nomissbowling/asciiz](https://github.com/nomissbowling/asciiz)
 
 to build dll
 
@@ -755,7 +767,8 @@ fn main() {
 
 see also
 
-- [ https://github.com/nomissbowling/ode-rs-0000 ]( https://github.com/nomissbowling/ode-rs-0000 )
+- [https://crates.io/crates/ode-rs-0000](https://crates.io/crates/ode-rs-0000)
+- [https://github.com/nomissbowling/ode-rs-0000](https://github.com/nomissbowling/ode-rs-0000)
 
 
 License

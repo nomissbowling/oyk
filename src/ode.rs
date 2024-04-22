@@ -13,14 +13,10 @@
 //! from
 //!
 //!  - include/bridge.hpp
-//!  - ode/drawstuff.h (from modified preprocess -E dum.cpp includes drawstuff.h)
-//!  - ode/ode.hpp (from modified preprocess -E dum.cpp includes ode.h)
 //!
 //! to
 //!
 //!  - include/bridge_bindings.rs
-//!  - ode/drawstuff_bindings.rs
-//!  - ode/ode_bindings.rs
 //!
 //! # Requirements
 //!
@@ -40,21 +36,17 @@
 #![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
 
-mod cppbridge;
-use cppbridge::*;
-pub use cppbridge::{Bridge, bput};
-pub use cppbridge::{dMULTIPLY0_331, dMULTIPLY0_333};
-pub use cppbridge::{convexfvp, trimeshvi};
-pub use cppbridge::{RecalcFaces, Normal4, Cross3};
+// mod cppbridge;
+// use cppbridge::*;
+// pub use cppbridge::{Bridge, bput};
 
-mod cdrawstuff;
-use cdrawstuff::*;
+pub use drawstuff::drawstuff::*;
 
-mod cppode;
-use cppode::*;
-pub use cppode::{dBodyID, dGeomID, dTriIndex};
-pub use cppode::{dMatrix4, dMatrix3, dVector4, dVector3, dReal}; // 16 12 4 4
-pub use cppode::{dQuaternion};
+//pub use ode_base::ode::*;
+use ode_base::ode::{self, *};
+pub use ode::{dBodyID, dGeomID, dTriIndex};
+pub use ode::{dMatrix4, dMatrix3, dVector4, dVector3, dReal}; // 16 12 4 4
+pub use ode::{dQuaternion};
 
 #[warn(unused)]
 // #[warn(unused_imports)]
@@ -65,20 +57,20 @@ pub use cppode::{dQuaternion};
 
 use std::error::Error;
 
-pub mod err;
-use err::*;
+// pub mod err in ode_base::ode::err
+pub use ode::err::{self, *};
 
-pub mod mat;
-use mat::*;
+// pub mod mat in ode_base::ode::mat
+pub use ode::mat::{self, *};
 
-pub mod prim;
-use prim::*;
+// pub mod prim in ode_base::ode::prim
+use ode::prim::{self, *};
 pub use prim::{Matrix4, M4I, Matrix3, M3I, Quaternion, QI};
 pub use prim::{PId, PI, PIh, PIt, PIq, PIx};
 pub use prim::{PIh3, PIt2, PIt4, PIt5, PIq3, PIx5};
 
-pub mod krp;
-use krp::*;
+// pub mod krp in ode_base::ode::krp
+use ode::krp::{self, *};
 pub use krp::{Krp, KRPnk, KRP100, KRP095, KRP080, KRP001};
 
 pub mod trimeshconvex;
