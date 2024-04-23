@@ -214,6 +214,7 @@ unsafe {
 }
 // pub use gws_dump;
 
+/// ds trait Tdrawstuff getter
 #[macro_export]
 macro_rules! ds_as_ref {
   () => {
