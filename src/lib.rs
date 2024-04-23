@@ -1,13 +1,13 @@
-#![doc(html_root_url = "https://docs.rs/oyk/0.10.1")]
+#![doc(html_root_url = "https://docs.rs/oyk/1.0.1")]
 //! OYK is ODE (Open Dynamics Engine) bindings for Rust yaw kinetics
+//!
+//! oyk is replaced to submodule of crate ode-rs after version 1.0.1
 //!
 //! # Requirements
 //!
-//! - [ode and drawstuff](https://ode.org/)
+//! - [ode](https://ode.org/)
 //! - [ode-base for Rust crates.io](https://crates.io/crates/ode-base)
 //! - [ode-base for Rust rep.](https://github.com/nomissbowling/ode-base)
-//! - [drawstuff for Rust crates.io](https://crates.io/crates/drawstuff)
-//! - [drawstuff for Rust rep.](https://github.com/nomissbowling/drawstuff)
 //! - [https://crates.io/crates/asciiz](https://crates.io/crates/asciiz)
 //! - [https://github.com/nomissbowling/asciiz](https://github.com/nomissbowling/asciiz)
 //!
@@ -18,7 +18,6 @@
 //!
 //! in the running directory
 //!
-//! - drawstuff.dll
 //! - ode.dll
 //! - libstdc++-6.dll
 //! - libgcc_s_seh-1.dll

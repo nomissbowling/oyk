@@ -1,4 +1,6 @@
-//! ode integrates bindings to cppbridge cdrawstuff and cppode
+//! ode integrates bindings to cppbridge and cppode
+//!
+//! oyk is replaced to submodule of crate ode-rs after version 1.0.1
 //!
 //! - cc-rs https://crates.io/crates/cc
 //! - bindgen https://crates.io/crates/bindgen
@@ -22,7 +24,6 @@
 //!
 //! in the running directory
 //!
-//! - drawstuff.dll
 //! - ode.dll
 //! - libstdc++-6.dll
 //! - libgcc_s_seh-1.dll
@@ -39,8 +40,6 @@
 // mod cppbridge;
 // use cppbridge::*;
 // pub use cppbridge::{Bridge, bput};
-
-pub use drawstuff::drawstuff::*;
 
 //pub use ode_base::ode::*;
 use ode_base::ode::{self, *};
@@ -87,6 +86,10 @@ pub mod cls;
 use cls::*;
 pub use cls::{obg::{Obg, Gws}, AsPtr};
 
+pub mod ds;
+use ds::*;
+pub use ds::{Tdrawstuff, TdrawstuffSetter};
+
 use std::collections::hash_map::Entry;
 use std::collections::HashMap; // with #[derive(PartialEq, Eq, Hash)] struct
 use std::collections::btree_map::Entry as BTreeEntry;
@@ -107,6 +110,7 @@ pub static mut OYK_MUT: Lazy<Vec<ODE>> = Lazy::new(|| vec![ODE::new(0.002)]);
 
 /// ODE singleton
 pub struct ODE { // unsafe
+  ds: Option<Box<dyn Tdrawstuff>>, // trait Tdrawstuff (for late binding)
   sim: Option<Box<dyn Sim>>, // trait Sim must have callback functions
   ptt: Option<U8zBuf>, // relative path to textures
   wire_solid: i32, // 0: wireframe, 1: solid (for bunny)
@@ -217,7 +221,7 @@ impl ODE {
 pub fn new(delta: dReal) -> ODE {
   ostatln!("new ODE");
   unsafe { dInitODE2(0); }
-  ODE{sim: None, ptt: None,
+  ODE{ds: None, sim: None, ptt: None,
     wire_solid: 1, polyfill_wireframe: 0, sw_viewpoint: 0,
     cams: vec![
       Cam::new(vec![5.0, 0.0, 2.0], vec![-180.0, 0.0, 0.0]),
@@ -236,8 +240,10 @@ pub fn new(delta: dReal) -> ODE {
 }
 
 /// ODE initialize
-pub fn open() {
+pub fn open(drawstuff: impl Tdrawstuff + 'static) {
 unsafe {
+  ODE::set_drawstuff(&mut ode_get_mut!(ds), drawstuff);
+
   // need this code (do nothing) to create instance
   let gws: &mut Gws = &mut ode_get_mut!(gws);
   gws.world_(0 as dWorldID); // force call new before create_world
@@ -668,7 +674,8 @@ unsafe {
   let cam = cams.get_mut(sw_viewpoint).unwrap(); // &mut cams[sw_viewpoint];
   let pos: &mut [f32] = &mut cam.pos;
   let ypr: &mut [f32] = &mut cam.ypr;
-  dsSetViewpoint(pos as *mut [f32] as *mut f32, ypr as *mut [f32] as *mut f32);
+  let ds = ode_get!(ds).as_ref().expect("ds");
+  ds.SetViewpoint(pos as *mut [f32] as *mut f32, ypr as *mut [f32] as *mut f32);
 }
 }
 
@@ -677,7 +684,8 @@ pub fn viewpoint(f: bool) {
 unsafe {
   let p: &mut [f32] = &mut vec![0.0; 4];
   let y: &mut [f32] = &mut vec![0.0; 4];
-  dsGetViewpoint(p as *mut [f32] as *mut f32, y as *mut [f32] as *mut f32);
+  let ds = ode_get!(ds).as_ref().expect("ds");
+  ds.GetViewpoint(p as *mut [f32] as *mut f32, y as *mut [f32] as *mut f32);
   let sw_viewpoint: &usize = &ode_get!(sw_viewpoint);
   println!("viewpoint {} {:?}, {:?}", *sw_viewpoint, p, y);
   match f {
@@ -702,7 +710,7 @@ unsafe {
   *sim = r_sim;
   let ptt: &mut Option<U8zBuf> = &mut ode_get_mut!(ptt);
   *ptt = Some(U8zBuf::from_u8array(a)); // to keep lifetime
-  let mut dsfn: dsFunctions = dsFunctions{
+  let mut dsfn: dsFunctions_C = dsFunctions_C{
     version: DS_VERSION,
     start: Some(c_start_callback), // Option<unsafe extern "C" fn()>
     step: Some(c_step_callback), // Option<unsafe extern "C" fn(i32)>
@@ -712,7 +720,8 @@ unsafe {
   };
 
   let mut cab: CArgsBuf = CArgsBuf::from(&std::env::args().collect());
-  dsSimulationLoop(cab.as_argc(), cab.as_argv_ptr_mut(),
+  let ds = ode_get!(ds).as_ref().expect("ds");
+  ds.SimulationLoop(cab.as_argc(), cab.as_argv_ptr_mut(),
     width, height, &mut dsfn);
 }
 }
@@ -797,6 +806,7 @@ fn draw_geom(&self, geom: dGeomID,
   pos: Option<*const dReal>, rot: Option<*const dReal>, ws: i32) {
   if geom == 0 as dGeomID { return; }
 unsafe {
+  let ds = ode_get!(ds).as_ref().expect("ds");
   let pos: *const dReal = pos.unwrap_or_else(|| dGeomGetPosition(geom));
   let rot: *const dReal = rot.unwrap_or_else(|| dGeomGetRotation(geom));
   let col: &dVector4 = match self.get_mgm(geom) {
@@ -806,41 +816,41 @@ unsafe {
     },
     Ok(mgm) => {
       let tcm = mgm.get_tcm();
-      dsSetTexture(tcm.tex);
+      ds.SetTexture(tcm.tex);
       &tcm.col
     }
   };
   let c: Vec<f32> = col.into_iter().map(|v| *v as f32).collect();
-  dsSetColorAlpha(c[0], c[1], c[2], c[3]);
+  ds.SetColorAlpha(c[0], c[1], c[2], c[3]);
   let cls = dGeomGetClass(geom);
   match cls {
     dSphereClass => {
       let radius: dReal = dGeomSphereGetRadius(geom);
-      dsDrawSphereD(pos, rot, radius as f32);
+      ds.DrawSphereD(pos, rot, radius as f32);
     },
     dBoxClass => {
       let mut lxyz: dVector3 = [0.0; 4];
       dGeomBoxGetLengths(geom, lxyz.as_ptr_mut());
-      dsDrawBoxD(pos, rot, lxyz.as_ptr());
+      ds.DrawBoxD(pos, rot, lxyz.as_ptr());
     },
     dCapsuleClass => {
       let mut r: dReal = 0.0;
       let mut l: dReal = 0.0;
       dGeomCapsuleGetParams(geom, &mut r as *mut dReal, &mut l as *mut dReal);
-      dsDrawCapsuleD(pos, rot, l as f32, r as f32);
+      ds.DrawCapsuleD(pos, rot, l as f32, r as f32);
     },
     dCylinderClass => {
       let mut r: dReal = 0.0;
       let mut l: dReal = 0.0;
       dGeomCylinderGetParams(geom, &mut r as *mut dReal, &mut l as *mut dReal);
-      dsDrawCylinderD(pos, rot, l as f32, r as f32);
+      ds.DrawCylinderD(pos, rot, l as f32, r as f32);
     },
     dPlaneClass => {
       let mut norm: dVector4 = [0.0; 4];
       dGeomPlaneGetParams(geom, norm.as_ptr_mut());
       // (a Plane is not a Box) dGeomBoxGetLengths
       let lxyz: dVector3 = [10.0, 10.0, 0.05, 0.0]; // ***
-      dsDrawBoxD(pos, rot, lxyz.as_ptr());
+      ds.DrawBoxD(pos, rot, lxyz.as_ptr());
     },
     dRayClass => {
       println!("not implemented class: {}", cls);
@@ -850,7 +860,7 @@ unsafe {
         Err(e) => { println!("not found convex {:?} geomID {:?}", e, geom); },
         Ok(mgm) => {
           let fvp: &convexfvp = &*mgm.as_convex().fvp;
-          dsDrawConvexD(pos, rot,
+          ds.DrawConvexD(pos, rot,
             fvp.faces, fvp.faceCount, fvp.vtx, fvp.vtxCount, fvp.polygons);
         }
       }
@@ -891,7 +901,7 @@ unsafe {
               [vtx[idx[0] * 3 + 0], vtx[idx[0] * 3 + 1], vtx[idx[0] * 3 + 2]],
               [vtx[idx[1] * 3 + 0], vtx[idx[1] * 3 + 1], vtx[idx[1] * 3 + 2]],
               [vtx[idx[2] * 3 + 0], vtx[idx[2] * 3 + 1], vtx[idx[2] * 3 + 2]]];
-            dsDrawTriangleD(pos, rot,
+            ds.DrawTriangleD(pos, rot,
               v[0].as_ptr(), v[1].as_ptr(), v[2].as_ptr(), ws);
           }
         }
@@ -910,8 +920,9 @@ fn start_callback(&mut self) {
   ostatln!("called default start");
   ODE::viewpoint_();
 unsafe {
-  dsSetSphereQuality(3); // default sphere 1
-  dsSetCapsuleQuality(3); // default capsule 3
+  let ds = ode_get!(ds).as_ref().expect("ds");
+  ds.SetSphereQuality(3); // default sphere 1
+  ds.SetCapsuleQuality(3); // default capsule 3
 }
 }
 
@@ -1005,7 +1016,8 @@ fn command_callback(&mut self, cmd: i32) {
 unsafe {
       let polyfill_wireframe: &mut i32 = &mut ode_get_mut!(polyfill_wireframe);
       *polyfill_wireframe = 1 - *polyfill_wireframe;
-      dsSetDrawMode(*polyfill_wireframe);
+      let ds = ode_get!(ds).as_ref().expect("ds");
+      ds.SetDrawMode(*polyfill_wireframe);
 }
     },
     'w' => {

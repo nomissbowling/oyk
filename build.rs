@@ -71,6 +71,5 @@ fn main() {
   }
 
   println!("cargo:rustc-link-search=./ode/lib");
-  println!("cargo:rustc-link-lib=drawstuff"); // auto from crates.io drawstuff
   println!("cargo:rustc-link-lib=ode"); // auto from crates.io ode-base
 }
