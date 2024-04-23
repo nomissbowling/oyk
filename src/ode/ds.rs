@@ -10,10 +10,15 @@ pub const DS_VERSION: c_int = 2;
 /// DS_TEXTURE_NUMBER (for compatibililty)
 /// pub type DS_TEXTURE_NUMBER = c_int; (drawstuff.h)
 pub enum DS_TEXTURE_NUMBER {
+  /// no texture only color
   DS_NONE = 0,
+  /// wood
   DS_WOOD = 1,
+  /// checkered
   DS_CHECKERED = 2,
+  /// ground
   DS_GROUND = 3,
+  /// sky
   DS_SKY = 4
 }
 
@@ -21,11 +26,17 @@ pub enum DS_TEXTURE_NUMBER {
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct dsFunctions_C {
+  /// version
   pub version: c_int,
+  /// start
   pub start: Option<unsafe extern "C" fn()>,
+  /// step
   pub step: Option<unsafe extern "C" fn(pause: c_int)>,
+  /// command
   pub command: Option<unsafe extern "C" fn(cmd: c_int)>,
+  /// stop
   pub stop: Option<unsafe extern "C" fn()>,
+  /// path to texture
   pub path_to_textures: *const c_char
 }
 

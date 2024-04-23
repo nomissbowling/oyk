@@ -214,6 +214,16 @@ unsafe {
 }
 // pub use gws_dump;
 
+#[macro_export]
+macro_rules! ds_as_ref {
+  () => {
+unsafe {
+    ode_get!(ds).as_ref().expect("get ds trait Tdrawstuff")
+}
+  };
+}
+// pub use ds_as_ref;
+
 /// singleton interface
 impl ODE {
 
@@ -674,7 +684,7 @@ unsafe {
   let cam = cams.get_mut(sw_viewpoint).unwrap(); // &mut cams[sw_viewpoint];
   let pos: &mut [f32] = &mut cam.pos;
   let ypr: &mut [f32] = &mut cam.ypr;
-  let ds = ode_get!(ds).as_ref().expect("ds");
+  let ds = ds_as_ref!();
   ds.SetViewpoint(pos as *mut [f32] as *mut f32, ypr as *mut [f32] as *mut f32);
 }
 }
@@ -684,7 +694,7 @@ pub fn viewpoint(f: bool) {
 unsafe {
   let p: &mut [f32] = &mut vec![0.0; 4];
   let y: &mut [f32] = &mut vec![0.0; 4];
-  let ds = ode_get!(ds).as_ref().expect("ds");
+  let ds = ds_as_ref!();
   ds.GetViewpoint(p as *mut [f32] as *mut f32, y as *mut [f32] as *mut f32);
   let sw_viewpoint: &usize = &ode_get!(sw_viewpoint);
   println!("viewpoint {} {:?}, {:?}", *sw_viewpoint, p, y);
@@ -720,7 +730,7 @@ unsafe {
   };
 
   let mut cab: CArgsBuf = CArgsBuf::from(&std::env::args().collect());
-  let ds = ode_get!(ds).as_ref().expect("ds");
+  let ds = ds_as_ref!();
   ds.SimulationLoop(cab.as_argc(), cab.as_argv_ptr_mut(),
     width, height, &mut dsfn);
 }
@@ -806,7 +816,7 @@ fn draw_geom(&self, geom: dGeomID,
   pos: Option<*const dReal>, rot: Option<*const dReal>, ws: i32) {
   if geom == 0 as dGeomID { return; }
 unsafe {
-  let ds = ode_get!(ds).as_ref().expect("ds");
+  let ds = ds_as_ref!();
   let pos: *const dReal = pos.unwrap_or_else(|| dGeomGetPosition(geom));
   let rot: *const dReal = rot.unwrap_or_else(|| dGeomGetRotation(geom));
   let col: &dVector4 = match self.get_mgm(geom) {
@@ -920,7 +930,7 @@ fn start_callback(&mut self) {
   ostatln!("called default start");
   ODE::viewpoint_();
 unsafe {
-  let ds = ode_get!(ds).as_ref().expect("ds");
+  let ds = ds_as_ref!();
   ds.SetSphereQuality(3); // default sphere 1
   ds.SetCapsuleQuality(3); // default capsule 3
 }
@@ -1016,7 +1026,7 @@ fn command_callback(&mut self, cmd: i32) {
 unsafe {
       let polyfill_wireframe: &mut i32 = &mut ode_get_mut!(polyfill_wireframe);
       *polyfill_wireframe = 1 - *polyfill_wireframe;
-      let ds = ode_get!(ds).as_ref().expect("ds");
+      let ds = ds_as_ref!();
       ds.SetDrawMode(*polyfill_wireframe);
 }
     },
