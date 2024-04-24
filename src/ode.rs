@@ -229,17 +229,6 @@ unsafe {
 }
 // pub use gws_dump;
 
-/// ds trait Tdrawstuff getter
-#[macro_export]
-macro_rules! ds_as_ref {
-  () => {
-unsafe {
-    ode_get!(ds).as_ref().expect("get ds trait Tdrawstuff")
-}
-  };
-}
-// pub use ds_as_ref;
-
 /// singleton interface
 impl ODE {
 
@@ -263,6 +252,13 @@ pub fn new(delta: dReal) -> ODE {
     vbgs: vec![].try_into().unwrap_or_else(|o: std::convert::Infallible|
       panic!("Expected VecDeque<dBodyID> from vec![] Infallible ({:?})", o)),
     modified: false, gws: Gws::new(), t_delta: delta}
+}
+
+/// ds trait Tdrawstuff getter
+pub fn ds_as_ref() -> &'static Box<dyn Tdrawstuff> {
+unsafe {
+    ode_get!(ds).as_ref().expect("get ds trait Tdrawstuff")
+}
 }
 
 /// ODE initialize
@@ -694,23 +690,23 @@ unsafe {
 
 /// set viewpoint (from the current viewpoint Cam[sw_viewpoint])
 pub fn viewpoint_() {
+  let ds = ODE::ds_as_ref();
 unsafe {
   let sw_viewpoint: &usize = &ode_get!(sw_viewpoint);
   let cams: &mut BTreeMap<usize, Cam> = &mut ode_get_mut!(cams);
   let cam = cams.get_mut(sw_viewpoint).unwrap(); // &mut cams[sw_viewpoint];
   let pos: &mut [f32] = &mut cam.pos;
   let ypr: &mut [f32] = &mut cam.ypr;
-  let ds = ds_as_ref!();
   ds.SetViewpoint(pos as *mut [f32] as *mut f32, ypr as *mut [f32] as *mut f32);
 }
 }
 
 /// get viewpoint (f: true, save to the current viewpoint Cam[sw_viewpoint])
 pub fn viewpoint(f: bool) {
+  let ds = ODE::ds_as_ref();
 unsafe {
   let p: &mut [f32] = &mut vec![0.0; 4];
   let y: &mut [f32] = &mut vec![0.0; 4];
-  let ds = ds_as_ref!();
   ds.GetViewpoint(p as *mut [f32] as *mut f32, y as *mut [f32] as *mut f32);
   let sw_viewpoint: &usize = &ode_get!(sw_viewpoint);
   println!("viewpoint {} {:?}, {:?}", *sw_viewpoint, p, y);
@@ -731,6 +727,7 @@ pub fn sim_loop(
   width: i32, height: i32,
   r_sim: Option<Box<dyn Sim>>,
   a: &[u8]) {
+  let ds = ODE::ds_as_ref();
 unsafe {
   let sim: &mut Option<Box<dyn Sim>> = &mut ode_get_mut!(sim);
   *sim = r_sim;
@@ -746,7 +743,6 @@ unsafe {
   };
 
   let mut cab: CArgsBuf = CArgsBuf::from(&std::env::args().collect());
-  let ds = ds_as_ref!();
   ds.SimulationLoop(cab.as_argc(), cab.as_argv_ptr_mut(),
     width, height, &mut dsfn);
 }
@@ -831,8 +827,8 @@ unsafe {
 fn draw_geom(&self, geom: dGeomID,
   pos: Option<*const dReal>, rot: Option<*const dReal>, ws: i32) {
   if geom == 0 as dGeomID { return; }
+  let ds = ODE::ds_as_ref();
 unsafe {
-  let ds = ds_as_ref!();
   let pos: *const dReal = pos.unwrap_or_else(|| dGeomGetPosition(geom));
   let rot: *const dReal = rot.unwrap_or_else(|| dGeomGetRotation(geom));
   let col: &dVector4 = match self.get_mgm(geom) {
@@ -944,9 +940,9 @@ unsafe {
 /// start default callback function
 fn start_callback(&mut self) {
   ostatln!("called default start");
+  let ds = ODE::ds_as_ref();
   ODE::viewpoint_();
 unsafe {
-  let ds = ds_as_ref!();
   ds.SetSphereQuality(3); // default sphere 1
   ds.SetCapsuleQuality(3); // default capsule 3
 }
@@ -1037,12 +1033,12 @@ unsafe {
 /// command default callback function
 fn command_callback(&mut self, cmd: i32) {
   ostatln!("called default command");
+  let ds = ODE::ds_as_ref();
   match cmd as u8 as char {
     'p' => {
 unsafe {
       let polyfill_wireframe: &mut i32 = &mut ode_get_mut!(polyfill_wireframe);
       *polyfill_wireframe = 1 - *polyfill_wireframe;
-      let ds = ds_as_ref!();
       ds.SetDrawMode(*polyfill_wireframe);
 }
     },
