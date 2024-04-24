@@ -108,6 +108,21 @@ use once_cell::sync::Lazy;
 /// unsafe static mut OYK_MUT (management ODE singleton instance)
 pub static mut OYK_MUT: Lazy<Vec<ODE>> = Lazy::new(|| vec![ODE::new(0.002)]);
 
+/// help default defined key set
+const KEY_HELP: &str = "
+  default defined key set
+  ctrl + 'P': pause on/off
+  ctrl + 'O': single step
+  ctrl + 'S': shadow on/off
+  ctrl + 'T': texture on/off
+  'w': wireframe (trimesh) solid/wireframe (show hidden face edge)
+  'p': wireframe (all) polyfill/wireframe (not show hidden face edge)
+  'v': show viewpoint (current num pos hpr)
+  's': change viewpoint (8 pattern preset/set)
+  'r': reset
+  '?': help (this message)
+";
+
 /// ODE singleton
 pub struct ODE { // unsafe
   ds: Option<Box<dyn Tdrawstuff>>, // trait Tdrawstuff (for late binding)
@@ -1053,6 +1068,9 @@ unsafe {
       ODE::clear_obgs();
       ODE::clear_contactgroup();
       ode_sim!(self, start_callback)
+    },
+    '?' => {
+      println!("{}", KEY_HELP);
     },
     _ => {}
   }
