@@ -43,6 +43,7 @@
 
 //pub use ode_base::ode::*;
 use ode_base::ode::{self, *};
+pub use ode::{convexfvp, trimeshvi};
 pub use ode::{dBodyID, dGeomID, dTriIndex};
 pub use ode::{dMatrix4, dMatrix3, dVector4, dVector3, dReal}; // 16 12 4 4
 pub use ode::{dQuaternion};
@@ -257,7 +258,7 @@ pub fn new(delta: dReal) -> ODE {
 /// ds trait Tdrawstuff getter
 pub fn ds_as_ref() -> &'static Box<dyn Tdrawstuff> {
 unsafe {
-    ode_get!(ds).as_ref().expect("get ds trait Tdrawstuff")
+  ode_get!(ds).as_ref().expect("get ds trait Tdrawstuff")
 }
 }
 
