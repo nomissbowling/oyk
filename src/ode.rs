@@ -545,14 +545,24 @@ unsafe {
 }
 
 /// search grand parent body
+/// (must check 0 as dBodyID later on the receiver)
 pub fn get_grand_parent(&self, id: dGeomID) -> dBodyID {
 unsafe {
   let mut b: dBodyID = dGeomGetBody(id);
   if b == 0 as dBodyID { // assume sub geom in the GeomTransform
-    b = dGeomGetBody(self.rgts[&id]); // reverse geom gtrans (no care or_else)
+    b = match self.rgts.get(&id) { // reverse geom gtrans
+    None => 0 as dBodyID, // must check 0 as dBodyID later on the receiver
+    Some(&g) => dGeomGetBody(g)
+    };
   }
   b
 }
+}
+
+/// get ground (from Gws)
+pub fn get_ground(&self) -> dGeomID {
+  let gws = &self.gws;
+  gws.ground()
 }
 
 /// search bounce (especially support GeomTransform)
@@ -622,7 +632,9 @@ pub fn find(&self, k: String) -> Result<&Obg, Box<dyn Error>> {
 }
 
 /// each_id (may use immutable result with get_mut to avoid dup mutable borrow)
-pub fn each_id(&self, la: fn(key: &str, id: dBodyID) -> bool) -> Vec<dBodyID> {
+/// - la: FnMut(key: &amp;str, id: dBodyID) -&gt; bool
+pub fn each_id<F>(&self, mut la: F) -> Vec<dBodyID>
+  where F: FnMut(&str, dBodyID) -> bool {
   let mut r: Vec<dBodyID> = vec![];
   for (k, v) in &self.mbgs {
     r.push(if la(k, *v) { *v } else { 0 as dBodyID });
@@ -631,7 +643,9 @@ pub fn each_id(&self, la: fn(key: &str, id: dBodyID) -> bool) -> Vec<dBodyID> {
 }
 
 /// each (can break by result of lambda)
-pub fn each(&self, la: fn(key: &str, id: dBodyID, obg: &Obg) -> bool) -> bool {
+/// - la: FnMut(key: &amp;str, id: dBodyID, obg: &amp;Obg) -&gt; bool
+pub fn each<F>(&self, mut la: F) -> bool
+  where F: FnMut(&str, dBodyID, &Obg) -> bool {
   for (k, v) in &self.mbgs {
     match self.get(*v) {
       Err(e) => { println!("{}", e); }, // may not be arrived here
@@ -1013,6 +1027,7 @@ fn step_callback(&mut self, pause: i32) {
       if !mi.get_krp().k {
 unsafe {
         let b: dBodyID = self.get_grand_parent(*id);
+        if b == 0 as dBodyID { continue; }
         tmp.entry(b).or_insert(*(dBodyGetPosition(b) as *const dVector3));
 }
       }
