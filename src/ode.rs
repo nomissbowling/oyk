@@ -99,7 +99,7 @@ use std::collections::VecDeque;
 
 use asciiz::u8z::{U8zBuf, u8zz::{CArgsBuf}};
 
-use std::ffi::{c_void};
+use std::ffi::{c_void, c_int};
 
 pub extern crate impl_sim;
 // pub use impl_sim::{impl_sim_fn, impl_sim_derive};
@@ -219,11 +219,13 @@ unsafe {
     ostatln!("0x{:016x}", gws.space);
     ostatln!("0x{:016x}", gws.ground);
     ostatln!("0x{:016x}", gws.contactgroup);
+    ostatln!("0x{:016x}", gws.num_contact);
 */
     ostatln!("{:018p}", gws.world());
     ostatln!("{:018p}", gws.space());
     ostatln!("{:018p}", gws.ground());
     ostatln!("{:018p}", gws.contactgroup());
+    ostatln!("{:018p}", gws.num_contact());
 }
     ()
   };
@@ -252,7 +254,7 @@ pub fn new(delta: dReal) -> ODE {
     obgs: vec![].into_iter().collect(), mbgs: vec![].into_iter().collect(),
     vbgs: vec![].try_into().unwrap_or_else(|o: std::convert::Infallible|
       panic!("Expected VecDeque<dBodyID> from vec![] Infallible ({:?})", o)),
-    modified: false, gws: Gws::new(), t_delta: delta}
+    modified: false, gws: Gws::new(12), t_delta: delta}
 }
 
 /// ds trait Tdrawstuff getter
@@ -263,16 +265,23 @@ unsafe {
 }
 
 /// ODE initialize
-pub fn open(drawstuff: impl Tdrawstuff + 'static) {
+/// - drawstuff: change drawstuff
+/// - delta: default 0.002
+/// - num_contact: default 12
+pub fn open(drawstuff: impl Tdrawstuff + 'static,
+  delta: dReal, num_contact: usize) {
 unsafe {
   ODE::set_drawstuff(&mut ode_get_mut!(ds), drawstuff);
 
+  ode_get_mut!(t_delta) = delta;
   // need this code (do nothing) to create instance
   let gws: &mut Gws = &mut ode_get_mut!(gws);
+  gws.num_contact_(num_contact);
   gws.world_(0 as dWorldID); // force call new before create_world
 /*
   // need this code (do nothing) to create instance
   let v = &mut OYK_MUT;
+  v[0].gws.num_contact_(num_contact);
   v[0].gws.world_(0 as dWorldID); // force call new before create_world
   drop(v);
 */
@@ -559,10 +568,65 @@ unsafe {
 }
 }
 
+/// search ancestor (parent and grand parent) body
+/// (must check 0 as dBodyID later on the receiver)
+pub fn get_ancestor(&self, id: dGeomID) -> (dBodyID, dBodyID) {
+unsafe {
+  let p: dBodyID = dGeomGetBody(id);
+  // assume sub geom in the GeomTransform
+  let gp: dBodyID = match self.rgts.get(&id) { // reverse geom gtrans
+  None => 0 as dBodyID, // must check 0 as dBodyID later on the receiver
+  Some(&g) => dGeomGetBody(g)
+  };
+  (p, gp)
+}
+}
+
 /// get ground (from Gws)
 pub fn get_ground(&self) -> dGeomID {
   let gws = &self.gws;
   gws.ground()
+}
+
+/// get contactgroup (from Gws)
+pub fn get_contactgroup(&self) -> dJointGroupID {
+  let gws = &self.gws;
+  gws.contactgroup()
+}
+
+/// get body num joints
+pub fn get_body_num_joints(&self, b: dBodyID) -> usize {
+  unsafe { dBodyGetNumJoints(b) as usize } // c_int
+}
+
+/// get body joint
+pub fn get_body_joint(&self, b: dBodyID, i: usize) -> dJointID {
+  unsafe { dBodyGetJoint(b, i as c_int) }
+}
+
+/// get joint num bodies
+pub fn get_joint_num_bodies(&self, joint: dJointID) -> usize {
+  unsafe { dJointGetNumBodies(joint) as usize }
+}
+
+/// get joint body
+pub fn get_joint_body(&self, joint: dJointID, i: usize) -> dBodyID {
+  unsafe { dJointGetBody(joint, i as c_int) }
+}
+
+/// is joint enabled
+pub fn is_joint_enabled(&self, joint: dJointID) -> bool {
+  unsafe { dJointIsEnabled(joint) != 0 }
+}
+
+/// get joint type
+pub fn get_joint_type(&self, joint: dJointID) -> dJointType {
+  unsafe { dJointGetType(joint) }
+}
+
+/// get joint data
+pub fn get_joint_data(&self, joint: dJointID) -> *mut c_void {
+  unsafe { dJointGetData(joint) }
 }
 
 /// search bounce (especially support GeomTransform)
@@ -981,8 +1045,14 @@ unsafe {
     }
     return;
   }
+/*
   const num: usize = 40;
   let contacts: &mut Vec<dContact> = &mut vec![dContact::new(); num];
+*/
+  let num: usize = gws.num_contact();
+  let contacts: &mut Vec<dContact> = &mut (0..num).into_iter().map(|_|
+    dContact::new()
+  ).collect::<Vec<_>>();
   let sz: i32 = std::mem::size_of::<dContact>() as i32;
   let n: i32 = dCollide(o1, o2, num as i32, &mut contacts[0].geom, sz);
   if ground == o1 || ground == o2 { // vs ground
@@ -994,8 +1064,8 @@ unsafe {
       p.surface.bounce = bounce; // or 0.0
       p.surface.bounce_vel = 0.01; // or 0.0 minimum velocity for bounce
       p.surface.mu = dInfinity; // or 0.5
-      p.surface.soft_erp = 0.2;
-      p.surface.soft_cfm = 0.001;
+      p.surface.soft_erp = 0.2; // default 0.2 (0.1 to 0.8)
+      p.surface.soft_cfm = 0.001; // default 1e-5f32 or 1e-10f64 (1e-9 to 1.0)
       let c: dJointID = dJointCreateContact(world, contactgroup, p);
       // dJointAttach(c, dGeomGetBody(p.geom.g1), dGeomGetBody(p.geom.g2));
       dJointAttach(c, dGeomGetBody(o1), dGeomGetBody(o2));
@@ -1009,8 +1079,8 @@ unsafe {
       p.surface.bounce_vel = 0.01; // or 0.0 minimum velocity for bounce
       p.surface.mu = dInfinity; // or 0.5
       let c: dJointID = dJointCreateContact(world, contactgroup, p);
-      // dJointAttach(c, dGeomGetBody(p.geom.g1), dGeomGetBody(p.geom.g2));
-      dJointAttach(c, dGeomGetBody(o1), dGeomGetBody(o2));
+      dJointAttach(c, dGeomGetBody(p.geom.g1), dGeomGetBody(p.geom.g2));
+      // dJointAttach(c, dGeomGetBody(o1), dGeomGetBody(o2));
     }
   }
 }

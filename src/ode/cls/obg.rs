@@ -292,18 +292,24 @@ unsafe {
 
 /// object of ODE, gws: singleton
 pub struct Gws { // unsafe *mut xxx
-  world: usize, // dWorldID
-  space: usize, // dSpaceID
-  ground: usize, // dGeomID
-  contactgroup: usize // dJointGroupID
+  /// dWorldID
+  world: usize,
+  /// dSpaceID
+  space: usize,
+  /// dGeomID
+  ground: usize,
+  /// dJointGroupID
+  contactgroup: usize,
+  /// number of contacts vec dContact
+  num_contact: usize
 }
 
 /// world space
 impl Gws {
 
 /// construct
-pub fn new() -> Gws {
-  Gws{world: 0, space: 0, ground: 0, contactgroup: 0}
+pub fn new(num_contact: usize) -> Gws {
+  Gws{world: 0, space: 0, ground: 0, contactgroup: 0, num_contact}
 }
 
 /// setter
@@ -322,6 +328,10 @@ pub fn ground(&self) -> dGeomID { as_id!(self, ground) }
 pub fn contactgroup_(&mut self, id: dJointGroupID) { from_id!(gws: self, id); }
 /// getter
 pub fn contactgroup(&self) -> dJointGroupID { as_id!(self, contactgroup) }
+/// setter
+pub fn num_contact_(&mut self, nc: usize) { self.num_contact = nc; }
+/// getter
+pub fn num_contact(&self) -> usize { self.num_contact }
 
 }
 
