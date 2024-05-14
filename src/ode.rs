@@ -269,24 +269,23 @@ unsafe {
 /// - delta: default 0.002
 /// - num_contact: default 12
 pub fn open(drawstuff: impl Tdrawstuff + 'static,
-  delta: dReal, num_contact: usize) {
+  delta: dReal, qsw: dReal, qsni: usize, cmcv: dReal, csl: dReal,
+  num_contact: usize) {
 unsafe {
   ODE::set_drawstuff(&mut ode_get_mut!(ds), drawstuff);
 
   ode_get_mut!(t_delta) = delta;
   // need this code (do nothing) to create instance
   let gws: &mut Gws = &mut ode_get_mut!(gws);
-  gws.num_contact_(num_contact);
   gws.world_(0 as dWorldID); // force call new before create_world
 /*
   // need this code (do nothing) to create instance
   let v = &mut OYK_MUT;
-  v[0].gws.num_contact_(num_contact);
   v[0].gws.world_(0 as dWorldID); // force call new before create_world
   drop(v);
 */
 }
-  ODE::create_world();
+  ODE::create_world(qsw, qsni, cmcv, csl, num_contact);
 //  gws_dump!();
 }
 
@@ -305,16 +304,27 @@ unsafe {
 }
 
 /// auto called by ODE::open() (custom start callback to create your objects)
-pub fn create_world() {
+pub fn create_world(qsw: dReal, qsni: usize, cmcv: dReal, csl: dReal,
+  num_contact: usize) {
   ostatln!("create world");
 unsafe {
   let gws: &mut Gws = &mut ode_get_mut!(gws);
   gws.world_(dWorldCreate());
-  dWorldSetGravity(gws.world(), 0.0, 0.0, -9.8);
+  let wld = gws.world();
+  dWorldSetGravity(wld, 0.0, 0.0, -9.8);
+  ostatln!("QSW: {}", dWorldGetQuickStepW(wld)); // dReal 1.3
+  dWorldSetQuickStepW(wld, qsw); // over_relaxation
+  ostatln!("QSNI: {}", dWorldGetQuickStepNumIterations(wld)); // c_int 20
+  dWorldSetQuickStepNumIterations(wld, qsni as c_int);
+  ostatln!("CMCV: {}", dWorldGetContactMaxCorrectingVel(wld)); // dReal inf
+  dWorldSetContactMaxCorrectingVel(wld, cmcv); // vel: inf or 1e-3 or 1e-2 ...
+  ostatln!("CSL: {}", dWorldGetContactSurfaceLayer(wld)); // dReal 0
+  dWorldSetContactSurfaceLayer(wld, csl); // depth
   gws.space_(dHashSpaceCreate(0 as dSpaceID));
   dSpaceSetCleanup(gws.space(), 1);
   gws.ground_(dCreatePlane(gws.space(), 0.0, 0.0, 1.0, 0.0));
   gws.contactgroup_(dJointGroupCreate(0));
+  gws.num_contact_(num_contact);
 }
 }
 
@@ -1062,10 +1072,10 @@ unsafe {
       let p: &mut dContact = &mut contacts[i];
       p.surface.mode = dContactBounce | dContactSoftERP | dContactSoftCFM;
       p.surface.bounce = bounce; // or 0.0
-      p.surface.bounce_vel = 0.01; // or 0.0 minimum velocity for bounce
+      p.surface.bounce_vel = 1e-2; // 1e-3 or 0.0 minimum velocity for bounce
       p.surface.mu = dInfinity; // or 0.5
       p.surface.soft_erp = 0.2; // default 0.2 (0.1 to 0.8)
-      p.surface.soft_cfm = 0.001; // default 1e-5f32 or 1e-10f64 (1e-9 to 1.0)
+      p.surface.soft_cfm = 1e-3; // default 1e-5f32 or 1e-10f64 (1e-9 to 1.0)
       let c: dJointID = dJointCreateContact(world, contactgroup, p);
       // dJointAttach(c, dGeomGetBody(p.geom.g1), dGeomGetBody(p.geom.g2));
       dJointAttach(c, dGeomGetBody(o1), dGeomGetBody(o2));
@@ -1074,13 +1084,17 @@ unsafe {
     let bounce: dReal = self.get_bounce(o1) * self.get_bounce(o2);
     for i in 0..n as usize {
       let p: &mut dContact = &mut contacts[i];
-      p.surface.mode = dContactBounce;
+      p.surface.mode = dContactBounce; // | dContactSoftERP | dContactSoftCFM;
       p.surface.bounce = bounce; // or 0.0
-      p.surface.bounce_vel = 0.01; // or 0.0 minimum velocity for bounce
+      p.surface.bounce_vel = 1e-2; // 1e-3 or 0.0 minimum velocity for bounce
       p.surface.mu = dInfinity; // or 0.5
+/*
+      p.surface.soft_erp = 0.2; // default 0.2 (0.1 to 0.8)
+      p.surface.soft_cfm = 1e-3; // default 1e-5f32 or 1e-10f64 (1e-9 to 1.0)
+*/
       let c: dJointID = dJointCreateContact(world, contactgroup, p);
-      dJointAttach(c, dGeomGetBody(p.geom.g1), dGeomGetBody(p.geom.g2));
-      // dJointAttach(c, dGeomGetBody(o1), dGeomGetBody(o2));
+      // dJointAttach(c, dGeomGetBody(p.geom.g1), dGeomGetBody(p.geom.g2));
+      dJointAttach(c, dGeomGetBody(o1), dGeomGetBody(o2));
     }
   }
 }
@@ -1105,6 +1119,7 @@ unsafe {
 unsafe {
     dSpaceCollide(gws.space(), 0 as *mut c_void, Some(c_near_callback));
     dWorldStep(gws.world(), *t_delta);
+    // dWorldQuickStep(gws.world(), *t_delta);
     dJointGroupEmpty(gws.contactgroup());
 }
     for (b, p) in &tmp {
