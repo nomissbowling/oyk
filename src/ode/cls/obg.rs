@@ -301,7 +301,9 @@ pub struct Gws { // unsafe *mut xxx
   /// dJointGroupID
   contactgroup: usize,
   /// number of contacts vec dContact
-  num_contact: usize
+  num_contact: usize,
+  /// contacts
+  pub contacts: Vec<dContact>
 }
 
 /// world space
@@ -309,7 +311,10 @@ impl Gws {
 
 /// construct
 pub fn new(num_contact: usize) -> Gws {
-  Gws{world: 0, space: 0, ground: 0, contactgroup: 0, num_contact}
+  let contacts = (0..num_contact).into_iter().map(|_|
+    dContact::new()
+  ).collect::<Vec<_>>();
+  Gws{world: 0, space: 0, ground: 0, contactgroup: 0, num_contact, contacts}
 }
 
 /// setter

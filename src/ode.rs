@@ -254,7 +254,7 @@ pub fn new(delta: dReal) -> ODE {
     obgs: vec![].into_iter().collect(), mbgs: vec![].into_iter().collect(),
     vbgs: vec![].try_into().unwrap_or_else(|o: std::convert::Infallible|
       panic!("Expected VecDeque<dBodyID> from vec![] Infallible ({:?})", o)),
-    modified: false, gws: Gws::new(12), t_delta: delta}
+    modified: false, gws: Gws::new(256), t_delta: delta}
 }
 
 /// ds trait Tdrawstuff getter
@@ -325,6 +325,9 @@ unsafe {
   gws.ground_(dCreatePlane(gws.space(), 0.0, 0.0, 1.0, 0.0));
   gws.contactgroup_(dJointGroupCreate(0));
   gws.num_contact_(num_contact);
+  gws.contacts = (0..num_contact).into_iter().map(|_|
+    dContact::new()
+  ).collect::<Vec<_>>(); // replace vec
 }
 }
 
@@ -610,18 +613,22 @@ pub fn get_contactgroup(&self) -> dJointGroupID {
 }
 
 /// get contacts
-pub fn get_contacts(&self, o1: dGeomID, o2: dGeomID) -> (i32, Vec<dContact>) {
-  let gws = &self.gws;
-  let num: usize = gws.num_contact();
-  let mut contacts: Vec<dContact> = (0..num).into_iter().map(|_|
-    dContact::new()
-  ).collect::<Vec<_>>();
+pub fn get_contacts(&mut self, o1: dGeomID, o2: dGeomID) -> i32 {
+  let gws = &mut self.gws;
   let sz: i32 = std::mem::size_of::<dContact>() as i32;
-  let mut n: i32 = 0;
 unsafe {
-  n = dCollide(o1, o2, num as i32, &mut contacts[0].geom, sz);
+  dCollide(o1, o2, gws.num_contact() as i32, &mut gws.contacts[0].geom, sz)
 }
-  (n, contacts)
+}
+
+/// ref contacts mut
+pub fn ref_contacts_mut(&mut self) -> &mut Vec<dContact> {
+  &mut self.gws.contacts
+}
+
+/// ref contacts
+pub fn ref_contacts(&self) -> &Vec<dContact> {
+  &self.gws.contacts
 }
 
 /// get body num joints
@@ -1075,12 +1082,12 @@ unsafe {
     }
     return;
   }
-  let (n, mut contacts) = self.get_contacts(o1, o2);
+  let n = self.get_contacts(o1, o2);
   if ground == o1 || ground == o2 { // vs ground
     let id: dGeomID = if ground == o1 { o2 } else { o1 };
     let bounce: dReal = self.get_bounce(id);
     for i in 0..n as usize {
-      let p: &mut dContact = &mut contacts[i];
+      let p: &mut dContact = &mut self.gws.contacts[i];
       p.surface.mode = dContactBounce | dContactSoftERP | dContactSoftCFM;
       p.surface.bounce = bounce; // or 0.0
       p.surface.bounce_vel = 1e-2; // 1e-3 or 0.0 minimum velocity for bounce
@@ -1094,7 +1101,7 @@ unsafe {
   }else{
     let bounce: dReal = self.get_bounce(o1) * self.get_bounce(o2);
     for i in 0..n as usize {
-      let p: &mut dContact = &mut contacts[i];
+      let p: &mut dContact = &mut self.gws.contacts[i];
       p.surface.mode = dContactBounce; // | dContactSoftERP | dContactSoftCFM;
       p.surface.bounce = bounce; // or 0.0
       p.surface.bounce_vel = 1e-2; // 1e-3 or 0.0 minimum velocity for bounce
