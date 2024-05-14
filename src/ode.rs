@@ -592,6 +592,11 @@ unsafe {
 }
 }
 
+/// is space (Geom)
+pub fn is_space(&self, o: dGeomID) -> bool {
+  unsafe { dGeomIsSpace(o) != 0 }
+}
+
 /// get ground (from Gws)
 pub fn get_ground(&self) -> dGeomID {
   let gws = &self.gws;
@@ -602,6 +607,21 @@ pub fn get_ground(&self) -> dGeomID {
 pub fn get_contactgroup(&self) -> dJointGroupID {
   let gws = &self.gws;
   gws.contactgroup()
+}
+
+/// get contacts
+pub fn get_contacts(&self, o1: dGeomID, o2: dGeomID) -> (i32, Vec<dContact>) {
+  let gws = &self.gws;
+  let num: usize = gws.num_contact();
+  let mut contacts: Vec<dContact> = (0..num).into_iter().map(|_|
+    dContact::new()
+  ).collect::<Vec<_>>();
+  let sz: i32 = std::mem::size_of::<dContact>() as i32;
+  let mut n: i32 = 0;
+unsafe {
+  n = dCollide(o1, o2, num as i32, &mut contacts[0].geom, sz);
+}
+  (n, contacts)
 }
 
 /// get body num joints
@@ -1055,16 +1075,7 @@ unsafe {
     }
     return;
   }
-/*
-  const num: usize = 40;
-  let contacts: &mut Vec<dContact> = &mut vec![dContact::new(); num];
-*/
-  let num: usize = gws.num_contact();
-  let contacts: &mut Vec<dContact> = &mut (0..num).into_iter().map(|_|
-    dContact::new()
-  ).collect::<Vec<_>>();
-  let sz: i32 = std::mem::size_of::<dContact>() as i32;
-  let n: i32 = dCollide(o1, o2, num as i32, &mut contacts[0].geom, sz);
+  let (n, mut contacts) = self.get_contacts(o1, o2);
   if ground == o1 || ground == o2 { // vs ground
     let id: dGeomID = if ground == o1 { o2 } else { o1 };
     let bounce: dReal = self.get_bounce(id);
