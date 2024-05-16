@@ -773,6 +773,61 @@ unsafe {
 }
 }
 
+/// unregister object
+/// - f: true with destroy
+pub fn unregister_obg(&mut self, obg: &Obg, f: bool) -> Option<Obg> {
+unsafe {
+  let b = obg.body();
+  let rgts: &mut HashMap<dGeomID, dGeomID> = &mut ode_get_mut!(rgts);
+  let mgms: &mut HashMap<dGeomID, Box<dyn MetaInf>> = &mut ode_get_mut!(mgms);
+  self.each_geom(obg, |g, _o| {
+    rgts.remove(&g); // gsub, gtrans
+    mgms.remove(&g); // geom, metainf
+    true
+  });
+  let vbgs: &mut VecDeque<dBodyID> = &mut ode_get_mut!(vbgs);
+  match vbgs.iter().position(|&e| e == b) {
+  None => (),
+  Some(i) => { vbgs.remove(i); }
+  }
+  let mbgs: &mut BTreeMap<String, dBodyID> = &mut ode_get_mut!(mbgs);
+  mbgs.remove(&obg.key); // key, body
+  let obgs: &mut HashMap<dBodyID, Obg> = &mut ode_get_mut!(obgs);
+  match obgs.remove(&b) { // body, Obg
+  None => None,
+  Some(obg) => if f { ODE::destroy_obg(&obg); None } else { Some(obg) }
+  }
+}
+}
+
+/// unregister object by id (not destroy)
+/// - f: true with destroy
+pub fn unregister_obg_by_id(&mut self, id: dBodyID, f: bool) -> Option<Obg> {
+  // let obg = self.obgs.get(&id); // cannot use immut and mut at the same time
+unsafe {
+  let obgs: &mut HashMap<dBodyID, Obg> = &mut ode_get_mut!(obgs); // avoid it
+  match obgs.get(&id) {
+  None => None,
+  Some(obg) => self.unregister_obg(obg, f)
+  }
+}
+}
+
+/// each geom in body (can break by result of lambda)
+/// - la: FnMut(g: dGeomID, obg: &amp;Obg) -&gt; bool
+pub fn each_geom<F>(&self, obg: &Obg, mut la: F) -> bool
+  where F: FnMut(dGeomID, &Obg) -> bool {
+unsafe {
+  let mut geom: dGeomID = dBodyGetFirstGeom(obg.body());
+  while(geom != 0 as dGeomID){
+    let nextgeom: dGeomID = dBodyGetNextGeom(geom);
+    if !la(geom, obg) { return false; }
+    geom = nextgeom;
+  }
+  true
+}
+}
+
 /// destroy and unregister all objects
 pub fn clear_obgs() {
 unsafe {
