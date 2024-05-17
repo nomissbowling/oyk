@@ -107,6 +107,95 @@ pub fn geom_(&mut self, id: dGeomID) { from_id!(obg: self, id); }
 /// getter
 pub fn geom(&self) -> dGeomID { as_id!(self, geom) }
 
+/// get mass to mut dMass by id
+pub fn get_mass_by_id(id: dBodyID, mass: &mut dMass) {
+unsafe {
+  dBodyGetMass(id, mass as *mut dMass)
+}
+}
+
+/// get mass to mut dMass
+pub fn get_mass(&self, mass: &mut dMass) {
+  Obg::get_mass_by_id(self.body(), mass)
+}
+
+/// get linear vel dVector3 as mut by id
+pub fn get_linear_vel_mut_by_id(id: dBodyID) -> dVector3 {
+unsafe {
+  *(dBodyGetLinearVel(id) as *mut dVector3)
+}
+}
+
+/// linear vel dVector3 as *mut [dReal; 4]
+pub fn linear_vel_ptr_mut(&mut self) -> *mut [dReal; 4] {
+unsafe {
+  let p: *mut dReal = dBodyGetLinearVel(self.body()) as *mut dReal;
+  p as *mut [dReal; 4]
+}
+}
+
+/// linear vel dVector3 as &mut [dReal] 4 usize
+pub fn linear_vel_(&mut self) -> &mut [dReal] {
+unsafe {
+  std::slice::from_raw_parts_mut(self.linear_vel_ptr_mut() as *mut dReal, 4)
+}
+}
+
+/// linear vel dVector3 as &[dReal] 4 usize
+pub fn linear_vel(&self) -> &[dReal] {
+unsafe {
+  let p: *const dReal = dBodyGetLinearVel(self.body());
+  std::slice::from_raw_parts(p, 4)
+}
+}
+
+/// linear vel dVector3 as ODEMat
+pub fn linear_vel_vec(&self) -> ODEMat {
+  ODEMat::as_vec(self.linear_vel())
+}
+
+/// get angular vel dVector3 as mut by id
+pub fn get_angular_vel_mut_by_id(id: dBodyID) -> dVector3 {
+unsafe {
+  *(dBodyGetAngularVel(id) as *mut dVector3)
+}
+}
+
+/// angular vel dVector3 as *mut [dReal; 4]
+pub fn angular_vel_ptr_mut(&mut self) -> *mut [dReal; 4] {
+unsafe {
+  let p: *mut dReal = dBodyGetAngularVel(self.body()) as *mut dReal;
+  p as *mut [dReal; 4]
+}
+}
+
+/// angular vel dVector3 as &mut [dReal] 4 usize
+pub fn angular_vel_(&mut self) -> &mut [dReal] {
+unsafe {
+  std::slice::from_raw_parts_mut(self.angular_vel_ptr_mut() as *mut dReal, 4)
+}
+}
+
+/// angular vel dVector3 as &[dReal] 4 usize
+pub fn angular_vel(&self) -> &[dReal] {
+unsafe {
+  let p: *const dReal = dBodyGetAngularVel(self.body());
+  std::slice::from_raw_parts(p, 4)
+}
+}
+
+/// angular vel dVector3 as ODEMat
+pub fn angular_vel_vec(&self) -> ODEMat {
+  ODEMat::as_vec(self.angular_vel())
+}
+
+/// get pos dVector3 as mut by id
+pub fn get_pos_mut_by_id(id: dBodyID) -> dVector3 {
+unsafe {
+  *(dBodyGetPosition(id) as *mut dVector3)
+}
+}
+
 /// pos dVector3 as *mut [dReal; 4]
 pub fn pos_ptr_mut(&mut self) -> *mut [dReal; 4] {
 unsafe {
@@ -133,6 +222,48 @@ unsafe {
 /// pos dVector3 as ODEMat
 pub fn pos_vec(&self) -> ODEMat {
   ODEMat::as_vec(self.pos())
+}
+
+/// get quaternion dVector4 as mut by id
+pub fn get_quaternion_mut_by_id(id: dBodyID) -> dVector4 {
+unsafe {
+  *(dBodyGetQuaternion(id) as *mut dVector4)
+}
+}
+
+/// quaternion dQuaternion as *mut [dReal; 4]
+pub fn quaternion_ptr_mut(&mut self) -> *mut [dReal; 4] {
+unsafe {
+  let p: *mut dReal = dBodyGetQuaternion(self.body()) as *mut dReal;
+  p as *mut [dReal; 4]
+}
+}
+
+/// quaternion dQuaternion as &mut [dReal] 4 usize
+pub fn quaternion_(&mut self) -> &mut [dReal] {
+unsafe {
+  std::slice::from_raw_parts_mut(self.quaternion_ptr_mut() as *mut dReal, 4)
+}
+}
+
+/// quaternion dQuaternion as &[dReal] 4 usize
+pub fn quaternion(&self) -> &[dReal] {
+unsafe {
+  let p: *const dReal = dBodyGetQuaternion(self.body());
+  std::slice::from_raw_parts(p, 4)
+}
+}
+
+/// quaternion dQuaternion as ODEMat
+pub fn quaternion_vec(&self) -> ODEMat {
+  ODEMat::as_vec(self.quaternion())
+}
+
+/// get rot dMatrix3 as mut by id
+pub fn get_rot_mut_by_id(id: dBodyID) -> dMatrix3 {
+unsafe {
+  *(dBodyGetRotation(id) as *mut dMatrix3)
+}
 }
 
 /// rot dMatrix3 as *mut [[dReal; 4]; 3]
@@ -163,107 +294,211 @@ pub fn rot_mat3(&self) -> ODEMat {
   ODEMat::as_mat(3, self.rot())
 }
 
-/// set position
-pub fn set_pos(&mut self, pos: dVector3) -> &mut Obg {
+/// set mass by id
+pub fn set_mass_by_id(id: dBodyID, mass: &dMass) {
 unsafe {
-  dBodySetPosition(self.body(), pos[0], pos[1], pos[2]);
+  dBodySetMass(id, mass as *const dMass)
 }
+}
+
+/// set mass
+pub fn set_mass(&mut self, mass: &dMass) -> &mut Obg {
+  Obg::set_mass_by_id(self.body(), mass);
   self
 }
 
-/// set rotation
-pub fn set_rot(&mut self, rot: dMatrix3) -> &mut Obg {
+/// set linear vel by id
+pub fn set_linear_vel_by_id(id: dBodyID, xyz: &dVector3) {
 unsafe {
-  dBodySetRotation(self.body(), rot.as_ptr() as *mut dReal);
+  dBodySetLinearVel(id, xyz[0], xyz[1], xyz[2]);
 }
+}
+
+/// set linear vel
+pub fn set_linear_vel(&mut self, xyz: dVector3) -> &mut Obg {
+  Obg::set_linear_vel_by_id(self.body(), &xyz);
   self
+}
+
+/// set angular vel by id
+pub fn set_angular_vel_by_id(id: dBodyID, xyz: &dVector3) {
+unsafe {
+  dBodySetAngularVel(id, xyz[0], xyz[1], xyz[2]);
+}
+}
+
+/// set angular vel
+pub fn set_angular_vel(&mut self, xyz: dVector3) -> &mut Obg {
+  Obg::set_angular_vel_by_id(self.body(), &xyz);
+  self
+}
+
+/// set position by id
+pub fn set_pos_by_id(id: dBodyID, pos: &dVector3) {
+unsafe {
+  dBodySetPosition(id, pos[0], pos[1], pos[2]);
+}
+}
+
+/// set position
+pub fn set_pos(&mut self, pos: dVector3) -> &mut Obg {
+  Obg::set_pos_by_id(self.body(), &pos);
+  self
+}
+
+/// set quaternion by id
+pub fn set_quaternion_by_id(id: dBodyID, q: &dQuaternion) {
+unsafe {
+  dBodySetQuaternion(id, q.as_ptr() as *mut dReal);
+}
 }
 
 /// set quaternion
 pub fn set_quaternion(&mut self, q: dQuaternion) -> &mut Obg {
-unsafe {
-  dBodySetQuaternion(self.body(), q.as_ptr() as *mut dReal);
-}
+  Obg::set_quaternion_by_id(self.body(), &q);
   self
+}
+
+/// set rotation by id
+pub fn set_rot_by_id(id: dBodyID, rot: &dMatrix3) {
+unsafe {
+  dBodySetRotation(id, rot.as_ptr() as *mut dReal);
+}
+}
+
+/// set rotation
+pub fn set_rot(&mut self, rot: dMatrix3) -> &mut Obg {
+  Obg::set_rot_by_id(self.body(), &rot);
+  self
+}
+
+/// set torque by id
+pub fn set_torque_by_id(id: dBodyID, t: &[dReal; 3]) {
+unsafe {
+  dBodySetTorque(id, t[0], t[1], t[2]);
+}
 }
 
 /// set torque
 pub fn set_torque(&mut self, t: [dReal; 3]) -> &mut Obg {
-unsafe {
-  dBodySetTorque(self.body(), t[0], t[1], t[2]);
-}
+  Obg::set_torque_by_id(self.body(), &t);
   self
+}
+
+/// add torque by id
+pub fn add_torque_by_id(id: dBodyID, t: &[dReal; 3]) {
+unsafe {
+  dBodyAddTorque(id, t[0], t[1], t[2]);
+}
 }
 
 /// add torque
 pub fn add_torque(&mut self, t: [dReal; 3]) -> &mut Obg {
-unsafe {
-  dBodyAddTorque(self.body(), t[0], t[1], t[2]);
-}
+  Obg::add_torque_by_id(self.body(), &t);
   self
+}
+
+/// add rel torque by id
+pub fn add_rel_torque_by_id(id: dBodyID, t: &[dReal; 3]) {
+unsafe {
+  dBodyAddRelTorque(id, t[0], t[1], t[2]);
+}
 }
 
 /// add rel torque
 pub fn add_rel_torque(&mut self, t: [dReal; 3]) -> &mut Obg {
-unsafe {
-  dBodyAddRelTorque(self.body(), t[0], t[1], t[2]);
-}
+  Obg::add_rel_torque_by_id(self.body(), &t);
   self
+}
+
+/// set force by id
+pub fn set_force_by_id(id: dBodyID, f: &[dReal; 3]) {
+unsafe {
+  dBodySetForce(id, f[0], f[1], f[2]);
+}
 }
 
 /// set force
 pub fn set_force(&mut self, f: [dReal; 3]) -> &mut Obg {
-unsafe {
-  dBodySetForce(self.body(), f[0], f[1], f[2]);
-}
+  Obg::set_force_by_id(self.body(), &f);
   self
+}
+
+/// add force by id
+pub fn add_force_by_id(id: dBodyID, f: &[dReal; 3]) {
+unsafe {
+  dBodyAddForce(id, f[0], f[1], f[2]);
+}
 }
 
 /// add force
 pub fn add_force(&mut self, f: [dReal; 3]) -> &mut Obg {
-unsafe {
-  dBodyAddForce(self.body(), f[0], f[1], f[2]);
-}
+  Obg::add_force_by_id(self.body(), &f);
   self
+}
+
+/// add rel force by id
+pub fn add_rel_force_by_id(id: dBodyID, f: &[dReal; 3]) {
+unsafe {
+  dBodyAddRelForce(id, f[0], f[1], f[2]);
+}
 }
 
 /// add rel force
 pub fn add_rel_force(&mut self, f: [dReal; 3]) -> &mut Obg {
-unsafe {
-  dBodyAddRelForce(self.body(), f[0], f[1], f[2]);
-}
+  Obg::add_rel_force_by_id(self.body(), &f);
   self
+}
+
+/// add force at pos by id
+pub fn add_force_at_by_id(id: dBodyID, f: &[dReal; 3], p: &[dReal; 3]) {
+unsafe {
+  dBodyAddForceAtPos(id, f[0], f[1], f[2], p[0], p[1], p[2]);
+}
 }
 
 /// add force at pos
 pub fn add_force_at(&mut self, f: [dReal; 3], p: [dReal; 3]) -> &mut Obg {
-unsafe {
-  dBodyAddForceAtPos(self.body(), f[0], f[1], f[2], p[0], p[1], p[2]);
-}
+  Obg::add_force_at_by_id(self.body(), &f, &p);
   self
+}
+
+/// add rel force at pos by id
+pub fn add_rel_force_at_by_id(id: dBodyID, f: &[dReal; 3], p: &[dReal; 3]) {
+unsafe {
+  dBodyAddRelForceAtPos(id, f[0], f[1], f[2], p[0], p[1], p[2]);
+}
 }
 
 /// add rel force at pos
 pub fn add_rel_force_at(&mut self, f: [dReal; 3], p: [dReal; 3]) -> &mut Obg {
-unsafe {
-  dBodyAddRelForceAtPos(self.body(), f[0], f[1], f[2], p[0], p[1], p[2]);
-}
+  Obg::add_rel_force_at_by_id(self.body(), &f, &p);
   self
+}
+
+/// add force at rel pos by id
+pub fn add_force_rel_by_id(id: dBodyID, f: &[dReal; 3], p: &[dReal; 3]) {
+unsafe {
+  dBodyAddForceAtRelPos(id, f[0], f[1], f[2], p[0], p[1], p[2]);
+}
 }
 
 /// add force at rel pos
 pub fn add_force_rel(&mut self, f: [dReal; 3], p: [dReal; 3]) -> &mut Obg {
-unsafe {
-  dBodyAddForceAtRelPos(self.body(), f[0], f[1], f[2], p[0], p[1], p[2]);
-}
+  Obg::add_force_rel_by_id(self.body(), &f, &p);
   self
+}
+
+/// add rel force at rel pos by id
+pub fn add_rel_force_rel_by_id(id: dBodyID, f: &[dReal; 3], p: &[dReal; 3]) {
+unsafe {
+  dBodyAddRelForceAtRelPos(id, f[0], f[1], f[2], p[0], p[1], p[2]);
+}
 }
 
 /// add rel force at rel pos
 pub fn add_rel_force_rel(&mut self, f: [dReal; 3], p: [dReal; 3]) -> &mut Obg {
-unsafe {
-  dBodyAddRelForceAtRelPos(self.body(), f[0], f[1], f[2], p[0], p[1], p[2]);
-}
+  Obg::add_rel_force_rel_by_id(self.body(), &f, &p);
   self
 }
 

@@ -756,6 +756,21 @@ pub fn each<F>(&self, mut la: F) -> bool
   true
 }
 
+/// each geom in body (can break by result of lambda)
+/// - la: FnMut(g: dGeomID, obg: &amp;Obg) -&gt; bool
+pub fn each_geom<F>(&self, obg: &Obg, mut la: F) -> bool
+  where F: FnMut(dGeomID, &Obg) -> bool {
+unsafe {
+  let mut geom: dGeomID = dBodyGetFirstGeom(obg.body());
+  while(geom != 0 as dGeomID){
+    let nextgeom: dGeomID = dBodyGetNextGeom(geom);
+    if !la(geom, obg) { return false; }
+    geom = nextgeom;
+  }
+  true
+}
+}
+
 /// destroy object (not unregister)
 pub fn destroy_obg(obg: &Obg) {
 unsafe {
@@ -810,21 +825,6 @@ unsafe {
   None => None,
   Some(obg) => self.unregister_obg(obg, f)
   }
-}
-}
-
-/// each geom in body (can break by result of lambda)
-/// - la: FnMut(g: dGeomID, obg: &amp;Obg) -&gt; bool
-pub fn each_geom<F>(&self, obg: &Obg, mut la: F) -> bool
-  where F: FnMut(dGeomID, &Obg) -> bool {
-unsafe {
-  let mut geom: dGeomID = dBodyGetFirstGeom(obg.body());
-  while(geom != 0 as dGeomID){
-    let nextgeom: dGeomID = dBodyGetNextGeom(geom);
-    if !la(geom, obg) { return false; }
-    geom = nextgeom;
-  }
-  true
 }
 }
 
@@ -1182,11 +1182,9 @@ fn step_callback(&mut self, pause: i32) {
     let mut tmp: HashMap<dBodyID, dVector3> = vec![].into_iter().collect();
     for (id, mi) in &self.mgms {
       if !mi.get_krp().k {
-unsafe {
         let b: dBodyID = self.get_grand_parent(*id);
         if b == 0 as dBodyID { continue; }
-        tmp.entry(b).or_insert(*(dBodyGetPosition(b) as *const dVector3));
-}
+        tmp.entry(b).or_insert(Obg::get_pos_mut_by_id(b)); // pass mut as const
       }
     }
 unsafe {
@@ -1195,11 +1193,7 @@ unsafe {
     // dWorldQuickStep(gws.world(), *t_delta);
     dJointGroupEmpty(gws.contactgroup());
 }
-    for (b, p) in &tmp {
-unsafe {
-      dBodySetPosition(*b, p[0], p[1], p[2]);
-}
-    }
+    for (&b, p) in &tmp { Obg::set_pos_by_id(b, p); }
   }
   ode_sim!(self, draw_objects)
 }
