@@ -1,6 +1,6 @@
 [package]
 name = "oyk"
-version = "1.1.6" # change with html_root_url in lib.rs
+version = "1.2.1" # change with html_root_url in lib.rs
 edition = "2021"
 authors = ["nomissbowling <nomissbowling@yahoo.co.jp>"]
 
@@ -26,7 +26,7 @@ asciiz = { version = "0.1" }
 
 # anyslot = { version = "0.1" }
 
-ode-base = { version = "0.1" }
+ode-base = { version = "0.2" }
 
 impl_sim = { version = "0.3" }
 

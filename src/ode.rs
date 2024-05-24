@@ -405,6 +405,7 @@ pub fn reg_obg(&mut self, obg: Obg) -> dBodyID {
 }
 
 /// create primitive object (register it to show on the ODE space world)
+/// - fmdm: true as m, false as dm
 pub fn creator_dm(&mut self, key: &str, mi: Box<dyn MetaInf>, fmdm: bool) ->
   (dBodyID, dGeomID, Box<dMass>) {
   let gws: &mut Gws = &mut self.gws;
@@ -675,6 +676,27 @@ pub fn get_bounce(&self, id: dGeomID) -> dReal {
   match self.get_mgm(gid) {
     Err(_) => KRP100.bounce, // will not be arrived here (check class before)
     Ok(mgm) => mgm.get_krp().bounce
+  }
+}
+
+/// search mu (especially support GeomTransform)
+pub fn get_mu(&self, id: dGeomID) -> dReal {
+  let gid: dGeomID = match unsafe { dGeomGetClass(id) } {
+    dGeomTransformClass => unsafe { dGeomTransformGetGeom(id) },
+    _ => id
+  }; // GeomTransform is never registered
+  match self.get_mgm(gid) {
+    Err(_) => KRP100.mu, // will not be arrived here (check class before)
+    Ok(mgm) => mgm.get_krp().mu
+  }
+}
+
+/// search Krp mut (from HashMap)
+pub fn get_krp_mut(&mut self, id: dGeomID) -> &mut Krp {
+  // self.get_mgm_mut(id).unwrap().get_krp_mut() // no care or_else
+  match self.get_mgm_mut(id) {
+    Err(_) => panic!("unregistered dGeomID MetaInf"), // cannot use &mut KRP100
+    Ok(mgm) => mgm.get_krp_mut()
   }
 }
 
@@ -1141,12 +1163,13 @@ unsafe {
   if ground == o1 || ground == o2 { // vs ground
     let id: dGeomID = if ground == o1 { o2 } else { o1 };
     let bounce: dReal = self.get_bounce(id);
+    let mu: dReal = self.get_mu(id);
     for i in 0..n as usize {
       let p: &mut dContact = &mut self.gws.contacts[i];
       p.surface.mode = dContactBounce | dContactSoftERP | dContactSoftCFM;
       p.surface.bounce = bounce; // or 0.0
       p.surface.bounce_vel = 1e-2; // 1e-3 or 0.0 minimum velocity for bounce
-      p.surface.mu = dInfinity; // or 0.5
+      p.surface.mu = mu; // or dInfinity or 0.5
       p.surface.soft_erp = 0.2; // default 0.2 (0.1 to 0.8)
       p.surface.soft_cfm = 1e-3; // default 1e-5f32 or 1e-10f64 (1e-9 to 1.0)
       let c: dJointID = dJointCreateContact(world, contactgroup, p);
@@ -1155,12 +1178,13 @@ unsafe {
     }
   }else{
     let bounce: dReal = self.get_bounce(o1) * self.get_bounce(o2);
+    let mu: dReal = dReal::min(self.get_mu(o1), self.get_mu(o2));
     for i in 0..n as usize {
       let p: &mut dContact = &mut self.gws.contacts[i];
       p.surface.mode = dContactBounce; // | dContactSoftERP | dContactSoftCFM;
       p.surface.bounce = bounce; // or 0.0
       p.surface.bounce_vel = 1e-2; // 1e-3 or 0.0 minimum velocity for bounce
-      p.surface.mu = dInfinity; // or 0.5
+      p.surface.mu = mu; // or dInfinity or 0.5
 /*
       p.surface.soft_erp = 0.2; // default 0.2 (0.1 to 0.8)
       p.surface.soft_cfm = 1e-3; // default 1e-5f32 or 1e-10f64 (1e-9 to 1.0)

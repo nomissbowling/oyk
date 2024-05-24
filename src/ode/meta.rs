@@ -43,6 +43,8 @@ pub trait MetaInf {
   /// MetaID
   fn id(&self) -> MetaId;
   /// every struct has krp
+  fn get_krp_mut(&mut self) -> &mut Krp;
+  /// every struct has krp
   fn get_krp(&self) -> &Krp;
   /// every struct has tcm
   fn get_tcm_mut(&mut self) -> &mut TCMaterial;
@@ -94,6 +96,8 @@ impl MetaInf for MetaSphere {
   /// MetaID
   fn id(&self) -> MetaId { MetaId::Sphere }
   /// every struct has krp
+  fn get_krp_mut(&mut self) -> &mut Krp { &mut self.krp }
+  /// every struct has krp
   fn get_krp(&self) -> &Krp { &self.krp }
   /// every struct has tcm
   fn get_tcm_mut(&mut self) -> &mut TCMaterial { &mut self.tcm }
@@ -130,6 +134,8 @@ impl MetaBox {
 impl MetaInf for MetaBox {
   /// MetaID
   fn id(&self) -> MetaId { MetaId::Box }
+  /// every struct has krp
+  fn get_krp_mut(&mut self) -> &mut Krp { &mut self.krp }
   /// every struct has krp
   fn get_krp(&self) -> &Krp { &self.krp }
   /// every struct has tcm
@@ -170,6 +176,8 @@ impl MetaInf for MetaCapsule {
   /// MetaID
   fn id(&self) -> MetaId { MetaId::Capsule }
   /// every struct has krp
+  fn get_krp_mut(&mut self) -> &mut Krp { &mut self.krp }
+  /// every struct has krp
   fn get_krp(&self) -> &Krp { &self.krp }
   /// every struct has tcm
   fn get_tcm_mut(&mut self) -> &mut TCMaterial { &mut self.tcm }
@@ -208,6 +216,8 @@ impl MetaCylinder {
 impl MetaInf for MetaCylinder {
   /// MetaID
   fn id(&self) -> MetaId { MetaId::Cylinder }
+  /// every struct has krp
+  fn get_krp_mut(&mut self) -> &mut Krp { &mut self.krp }
   /// every struct has krp
   fn get_krp(&self) -> &Krp { &self.krp }
   /// every struct has tcm
@@ -248,6 +258,8 @@ impl MetaInf for MetaPlane {
   /// MetaID
   fn id(&self) -> MetaId { MetaId::Plane }
   /// every struct has krp
+  fn get_krp_mut(&mut self) -> &mut Krp { &mut self.krp }
+  /// every struct has krp
   fn get_krp(&self) -> &Krp { &self.krp }
   /// every struct has tcm
   fn get_tcm_mut(&mut self) -> &mut TCMaterial { &mut self.tcm }
@@ -286,6 +298,8 @@ impl MetaConvex {
 impl MetaInf for MetaConvex {
   /// MetaID
   fn id(&self) -> MetaId { MetaId::Convex }
+  /// every struct has krp
+  fn get_krp_mut(&mut self) -> &mut Krp { &mut self.krp }
   /// every struct has krp
   fn get_krp(&self) -> &Krp { &self.krp }
   /// every struct has tcm
@@ -336,6 +350,8 @@ impl MetaInf for MetaTriMesh {
   /// MetaID
   fn id(&self) -> MetaId { MetaId::TriMesh }
   /// every struct has krp
+  fn get_krp_mut(&mut self) -> &mut Krp { &mut self.krp }
+  /// every struct has krp
   fn get_krp(&self) -> &Krp { &self.krp }
   /// every struct has tcm
   fn get_tcm_mut(&mut self) -> &mut TCMaterial { &mut self.tcm }
@@ -384,6 +400,8 @@ impl MetaComposite {
 impl MetaInf for MetaComposite {
   /// MetaID
   fn id(&self) -> MetaId { MetaId::Composite }
+  /// every struct has krp
+  fn get_krp_mut(&mut self) -> &mut Krp { &mut self.krp }
   /// every struct has krp
   fn get_krp(&self) -> &Krp { &self.krp }
   /// every struct has tcm
